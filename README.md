@@ -1,32 +1,35 @@
 # Digest
 
-Document ingestion & insight service, built incrementally phase by phase.
+Document ingestion and insight service, built phase by phase.
 
-## Phase 0 - Walking skeleton
+## API
 
-- `POST /documents` - submit a title and text, get back computed insights.
-- `GET /documents` - list all documents.
-- `GET /documents/{id}` - fetch a single document.
-- `GET /health` - health check.
+- `POST /documents` - submit title + text, get insights back
+- `GET /documents` - list all documents
+- `GET /documents/{id}` - fetch one document
+- `GET /health` - health check
 
-Storage is an in-process dict - restarting the server loses all data. Persistence
-arrives in a later phase.
+Insights per document:
 
-Insights computed per document: char count (with/without whitespace), word count,
-unique word count, sentence count, paragraph count, average word length, top 10
-words (stopwords excluded), and estimated reading time.
+- character, word, unique word, sentence and paragraph counts
+- average word length
+- top 10 words
+- estimated reading time
 
-## Running locally
+> **Note:** storage is in-memory. Restarting the server loses all data.
 
-```bash
+## Setup
+
+```powershell
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-
 uvicorn app.main:app --reload
 ```
 
-## Tests and linting
+Interactive docs at http://localhost:8000/docs
+
+## Checks
 
 ```bash
 pytest
