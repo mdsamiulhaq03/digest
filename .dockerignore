@@ -1,0 +1,35 @@
+# Version control
+.git
+.gitignore
+
+# Python environment / cache
+.venv
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Tests and tooling
+tests/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Env files (never bake secrets into the image)
+.env
+
+# Docker itself
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Docs
+README.md
