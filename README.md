@@ -20,6 +20,19 @@ Insights per document:
 
 ## Setup
 
+### With Docker (recommended)
+
+```powershell
+New-Item -ItemType File -Path .env -ErrorAction SilentlyContinue
+docker compose up --build
+```
+
+The API is available at http://localhost:8000, with hot reload on changes under `app/`.
+
+> **Note:** `.env` isn't used by the app yet (no config to load) but `docker-compose.yml` requires the file to exist. An empty file is fine for now.
+
+### Without Docker
+
 ```powershell
 python -m venv .venv
 .venv\Scripts\activate
@@ -35,4 +48,11 @@ Interactive docs at http://localhost:8000/docs
 pytest
 ruff check .
 ruff format .
+```
+
+Or, with Docker running:
+
+```powershell
+docker compose exec app pytest
+docker compose exec app ruff check .
 ```
