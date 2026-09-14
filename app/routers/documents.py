@@ -1,44 +1,39 @@
-import uuid
-from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
-from fastapi import APIRouter, HTTPException
-
-from app.schemas.document import (
-    DocumentCreate,
-    DocumentListResponse,
-    DocumentResponse,
-    InsightsSchema,
-)
-from app.utils.insights import compute_insights
+from app.core.db import get_db
+from app.repositories.document_repository import DocumentRepository
+from app.schemas.document import DocumentCreate, DocumentListResponse, DocumentResponse
+from app.services import document_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-_documents: dict[str, DocumentResponse] = {}
+
+def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository:
+    return DocumentRepository(db)
 
 
 @router.post("", response_model=DocumentResponse, status_code=201)
-def create_document(payload: DocumentCreate) -> DocumentResponse:
-    insights = InsightsSchema(**compute_insights(payload.text))
-    document = DocumentResponse(
-        id=str(uuid.uuid4()),
-        title=payload.title,
-        text=payload.text,
-        insights=insights,
-        created_at=datetime.now(timezone.utc),
-    )
-    _documents[document.id] = document
-    return document
+def create_document(
+    payload: DocumentCreate,
+    repo: DocumentRepository = Depends(get_document_repository),
+) -> DocumentResponse:
+    return document_service.create_document(payload, repo)
 
 
 @router.get("", response_model=DocumentListResponse)
-def list_documents() -> DocumentListResponse:
-    documents = list(_documents.values())
-    return DocumentListResponse(documents=documents, total=len(documents))
+def list_documents(
+    repo: DocumentRepository = Depends(get_document_repository),
+) -> DocumentListResponse:
+    return document_service.list_documents(repo)
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)
-def get_document(document_id: str) -> DocumentResponse:
-    document = _documents.get(document_id)
+def get_document(
+    document_id: str,
+    repo: DocumentRepository = Depends(get_document_repository),
+) -> DocumentResponse:
+    document = document_service.get_document(document_id, repo)
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
     return document

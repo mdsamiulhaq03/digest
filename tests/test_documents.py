@@ -1,3 +1,6 @@
+import uuid
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -11,6 +14,7 @@ def test_health() -> None:
     assert response.json() == {"status": "ok"}
 
 
+@pytest.mark.integration
 def test_create_and_get_document() -> None:
     response = client.post(
         "/documents",
@@ -27,8 +31,14 @@ def test_create_and_get_document() -> None:
     assert get_response.json()["id"] == doc_id
 
 
-def test_get_missing_document_returns_404() -> None:
+def test_get_malformed_document_id_returns_404() -> None:
     response = client.get("/documents/does-not-exist")
+    assert response.status_code == 404
+
+
+@pytest.mark.integration
+def test_get_missing_document_returns_404() -> None:
+    response = client.get(f"/documents/{uuid.uuid4()}")
     assert response.status_code == 404
 
 
@@ -37,10 +47,14 @@ def test_create_document_invalid_payload_returns_422() -> None:
     assert response.status_code == 422
 
 
-def test_list_documents() -> None:
+@pytest.mark.integration
+def test_list_documents_returns_newest_first() -> None:
+    client.post("/documents", json={"title": "Older", "text": "First document."})
+    client.post("/documents", json={"title": "Newer", "text": "Second document."})
+
     response = client.get("/documents")
     assert response.status_code == 200
     body = response.json()
-    assert "documents" in body
-    assert "total" in body
-    assert body["total"] == len(body["documents"])
+
+    assert body["total"] == 2
+    assert [d["title"] for d in body["documents"]] == ["Newer", "Older"]

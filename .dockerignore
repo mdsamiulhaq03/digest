@@ -1,6 +1,12 @@
 # Version control
 .git
 .gitignore
+.github
+
+# Tooling / scratch output that has no business in a runtime image
+.claude
+graphify-out
+Makefile
 
 # Python environment / cache
 .venv
@@ -33,3 +39,4 @@ docker-compose.yml
 
 # Docs
 README.md
+Digest.md
