@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -27,7 +28,7 @@ class InsightsSchema(BaseModel):
 class DocumentResponse(BaseModel):
     """Response shape returned for a single document."""
 
-    id: str
+    id: uuid.UUID
     title: str
     text: str
     insights: InsightsSchema

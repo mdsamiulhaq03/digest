@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routes import documents, health
+from app.routers import documents, health
 
 app = FastAPI(title="Digest")
 

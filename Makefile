@@ -4,7 +4,7 @@ up:
 	docker compose up --build
 
 test:
-	pytest
+	docker compose run --rm app pytest
 
 lint:
 	ruff check .
