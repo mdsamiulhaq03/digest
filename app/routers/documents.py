@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
@@ -33,7 +33,4 @@ def get_document(
     document_id: str,
     repo: DocumentRepository = Depends(get_document_repository),
 ) -> DocumentResponse:
-    document = document_service.get_document(document_id, repo)
-    if document is None:
-        raise HTTPException(status_code=404, detail="Document not found")
-    return document
+    return document_service.get_document(document_id, repo)

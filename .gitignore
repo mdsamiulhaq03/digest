@@ -22,3 +22,6 @@ Thumbs.db
 .vscode/
 .idea/
 Digest.md
+
+# phase writeups (local reference only)
+docs/phase-*.md
