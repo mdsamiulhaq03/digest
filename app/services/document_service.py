@@ -1,5 +1,8 @@
 import uuid
 
+from loguru import logger
+
+from app.core.exceptions import DocumentNotFoundError
 from app.models.document import Document
 from app.models.insight import Insight
 from app.repositories.document_repository import DocumentRepository
@@ -30,6 +33,7 @@ def create_document(
     document = Document(title=payload.title, text=payload.text)
     document.insight = Insight(**insight_data)
     created = repo.create(document)
+    logger.info("document created", document_id=str(created.id))
     return _to_response(created)
 
 
@@ -39,13 +43,15 @@ def list_documents(repo: DocumentRepository) -> DocumentListResponse:
     return DocumentListResponse(documents=responses, total=len(responses))
 
 
-def get_document(document_id: str, repo: DocumentRepository) -> DocumentResponse | None:
+def get_document(document_id: str, repo: DocumentRepository) -> DocumentResponse:
     try:
         document_uuid = uuid.UUID(document_id)
     except ValueError:
-        return None
+        logger.info("document not found", document_id=document_id)
+        raise DocumentNotFoundError(document_id) from None
 
     document = repo.get_by_id(document_uuid)
     if document is None:
-        return None
+        logger.info("document not found", document_id=document_id)
+        raise DocumentNotFoundError(document_id)
     return _to_response(document)

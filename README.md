@@ -18,6 +18,44 @@ Insights per document:
 
 > **Note:** documents and insights are stored in Postgres. Schema is versioned with Alembic migrations, which run automatically on container startup.
 
+## Errors
+
+Every failure returns the same shape, whatever caused it — a known application error, a rejected payload, or an unhandled crash:
+
+```json
+{
+  "error": {
+    "message": "Document 0f9c... not found",
+    "request_id": "8c1f4e2a-..."
+  }
+}
+```
+
+A validation failure adds a `details` key holding the per-field errors; it is omitted entirely otherwise, rather than sent as `null`. `request_id` matches the `X-Request-ID` response header and is the value to quote when reporting a problem.
+
+Services raise domain exceptions from `app/core/exceptions.py` (`DocumentNotFoundError`, etc.) and never mention HTTP. Handlers registered in `app/main.py` map those to status codes at the edge — so the status code for a rule lives in exactly one place, and services stay testable without a `TestClient`.
+
+A crash returns `"Internal server error"` and nothing else. The exception type, message and traceback go to the logs only: an exception string can easily carry a file path, a query or a connection string.
+
+## Observability
+
+Logs are JSON on stdout, one object per line, at `LOG_LEVEL` (default `INFO`). Nothing writes with `print`, and uvicorn's and SQLAlchemy's standard-library logs are funnelled through the same sink, so every line logged while serving a request is JSON.
+
+Two sets of lines at boot are still plain text, both because they are emitted before the application is imported and logging is configured: Alembic's migration output (a separate process in the entrypoint) and the three lines from the `--reload` supervisor, which only exists in the dev image. Neither happens during request handling.
+
+Each request gets an ID — taken from the client's `X-Request-ID` header if it sends one, otherwise generated — which is returned on the response and attached to **every** log line emitted while handling that request, including lines logged deep inside a service. It travels in a `contextvar`, not through function arguments, so no function signature has to mention it.
+
+One access line is written per request with method, path, status and duration, including when the handler raised:
+
+```json
+{"message": "request handled", "extra": {"request_id": "8c1f...", "method": "GET",
+ "path": "/documents/abc", "status_code": 404, "duration_ms": 3.62}}
+```
+
+Uvicorn's own access log is switched off rather than intercepted — it would be a second, less useful line for the same request.
+
+To trace a failure: pull the `request_id` from the error response, then filter logs on it to get that request's access line and everything it logged along the way.
+
 ## Setup
 
 ### With Docker (recommended)
