@@ -1,10 +1,10 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.document import Document
-from app.models.job import Job
+from app.models.job import Job, JobState
 
 
 class JobRepository:
@@ -32,3 +32,40 @@ class JobRepository:
             .where(Job.id == job_id, Document.owner_id == owner_id)
         )
         return self.db.scalars(stmt).first()
+
+    # --- Worker side. Each state change is one conditional UPDATE, so two
+    # workers can never both believe they own a job.
+
+    def claim(self, job_id: uuid.UUID) -> Job | None:
+        """Move a queued job to running and count the attempt. Returns None if
+        the job isn't queued (already claimed, finished, or deleted)."""
+        stmt = (
+            update(Job)
+            .where(Job.id == job_id, Job.state == JobState.QUEUED)
+            .values(
+                state=JobState.RUNNING,
+                attempts=Job.attempts + 1,
+                started_at=func.now(),
+            )
+            .returning(Job)
+        )
+        return self.db.scalars(stmt).first()
+
+    def document_for(self, job: Job) -> Document:
+        # Not owner-scoped: the worker acts for the system, not for a caller.
+        # Reached only through a job the worker has just claimed.
+        return self.db.get_one(Document, job.document_id)
+
+    def mark_succeeded(self, job_id: uuid.UUID) -> None:
+        self._set(job_id, state=JobState.SUCCEEDED, finished_at=func.now())
+
+    def mark_failed(self, job_id: uuid.UUID, error: str) -> None:
+        self._set(
+            job_id, state=JobState.FAILED, last_error=error, finished_at=func.now()
+        )
+
+    def requeue(self, job_id: uuid.UUID, error: str) -> None:
+        self._set(job_id, state=JobState.QUEUED, last_error=error, started_at=None)
+
+    def _set(self, job_id: uuid.UUID, **values: object) -> None:
+        self.db.execute(update(Job).where(Job.id == job_id).values(**values))

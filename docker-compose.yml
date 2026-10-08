@@ -52,6 +52,30 @@ services:
       start_period: 5s
       retries: 3
 
+  worker:
+    build:
+      context: .
+      target: dev
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app/app
+      - uploads:/data/uploads
+    # Same image as app, different process. The image's entrypoint runs
+    # migrations; skipping it here means only one container ever migrates, and
+    # waiting for app to be healthy means they have finished before we start.
+    entrypoint: ["python"]
+    command: ["-m", "app.worker"]
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # The image's healthcheck probes :8000/health, which only the API serves.
+    healthcheck:
+      disable: true
+
 volumes:
   postgres_data:
   uploads:
