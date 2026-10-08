@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
+from httpx import Response
+from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy import update
 
 from app.core.db import SessionLocal
@@ -13,6 +15,7 @@ from app.main import app
 from app.models.user import User, UserRole
 
 PASSWORD = "correct-horse-battery"
+CSV_BYTES = b"name,age\nada,36\nalan,41\n"
 
 _client = TestClient(app)
 
@@ -55,3 +58,24 @@ def set_role(email: str, role: UserRole) -> None:
     with SessionLocal() as session:
         session.execute(update(User).where(User.email == email).values(role=role))
         session.commit()
+
+
+def upload(
+    headers: dict[str, str], filename: str = "people.csv", body: bytes = CSV_BYTES
+) -> Response:
+    return _client.post(
+        "/documents/upload", files={"file": (filename, body)}, headers=headers
+    )
+
+
+class RecordingQueue:
+    """Captures enqueued ids instead of talking to Redis."""
+
+    def __init__(self, fail: bool = False) -> None:
+        self.fail = fail
+        self.job_ids: list[uuid.UUID] = []
+
+    def enqueue(self, job_id: uuid.UUID) -> None:
+        if self.fail:
+            raise RedisConnectionError("redis is down")
+        self.job_ids = [*self.job_ids, job_id]

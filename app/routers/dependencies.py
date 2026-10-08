@@ -17,9 +17,11 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.exceptions import InvalidTokenError, PermissionDeniedError
+from app.core.queue import JobQueue, get_redis
 from app.core.security import decode_access_token
 from app.models.user import User, UserRole
 from app.repositories.document_repository import DocumentRepository
+from app.repositories.job_repository import JobRepository
 from app.repositories.user_repository import UserRepository
 
 # auto_error=False: a missing header comes back as None so it can be raised as
@@ -33,6 +35,16 @@ def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
 
 def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository:
     return DocumentRepository(db)
+
+
+# FastAPI resolves get_db once per request, so every repository in a request
+# shares one session - which is what lets a service commit them together.
+def get_job_repository(db: Session = Depends(get_db)) -> JobRepository:
+    return JobRepository(db)
+
+
+def get_job_queue() -> JobQueue:
+    return JobQueue(get_redis())
 
 
 def get_current_user(

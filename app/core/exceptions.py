@@ -21,6 +21,12 @@ class DocumentNotFoundError(NotFoundError):
         self.document_id = document_id
 
 
+class JobNotFoundError(NotFoundError):
+    def __init__(self, job_id: str) -> None:
+        super().__init__(f"Job {job_id} not found")
+        self.job_id = job_id
+
+
 class AuthenticationError(AppError):
     status_code = 401
     # RFC 9110: a 401 must tell the client which scheme to authenticate with.
@@ -55,3 +61,19 @@ class ConflictError(AppError):
 class EmailAlreadyRegisteredError(ConflictError):
     def __init__(self) -> None:
         super().__init__("Email is already registered")
+
+
+class UnsupportedFileTypeError(AppError):
+    status_code = 415
+
+    def __init__(self, allowed_extensions: list[str]) -> None:
+        super().__init__(f"Only {', '.join(allowed_extensions)} files are accepted")
+
+
+class FileTooLargeError(AppError):
+    status_code = 413
+
+    def __init__(self, max_bytes: int) -> None:
+        super().__init__(
+            f"File is larger than the {max_bytes // (1024 * 1024)} MB limit"
+        )
