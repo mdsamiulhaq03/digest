@@ -16,6 +16,10 @@ class FakeUserRepository:
 
     def __init__(self, users: list[User] | None = None) -> None:
         self._users = {user.email: user for user in users or []}
+        self.commits = 0
+
+    def commit(self) -> None:
+        self.commits += 1
 
     def create(self, user: User) -> User:
         if user.email in self._users:
@@ -35,6 +39,23 @@ def _existing_user(email: str = "sam@example.com", is_active: bool = True) -> Us
     return make_user(
         email=email, password_hash=hash_password(PASSWORD), is_active=is_active
     )
+
+
+def test_register_commits_exactly_once() -> None:
+    repo = FakeUserRepository()
+    auth_service.register(
+        RegisterRequest(email="sam@example.com", password=PASSWORD), repo
+    )
+    assert repo.commits == 1
+
+
+def test_rejected_register_commits_nothing() -> None:
+    repo = FakeUserRepository([_existing_user()])
+    with pytest.raises(EmailAlreadyRegisteredError):
+        auth_service.register(
+            RegisterRequest(email="sam@example.com", password=PASSWORD), repo
+        )
+    assert repo.commits == 0
 
 
 def test_register_stores_lowercased_email_and_a_hash() -> None:

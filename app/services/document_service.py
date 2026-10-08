@@ -34,6 +34,7 @@ def create_document(
     document = Document(title=payload.title, text=payload.text, owner_id=owner.id)
     document.insight = Insight(**asdict(compute_insights(payload.text)))
     created = repo.create(document)
+    repo.commit()
     logger.info("document created", document_id=str(created.id), owner_id=str(owner.id))
     return _to_response(created)
 

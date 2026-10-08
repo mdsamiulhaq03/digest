@@ -7,14 +7,20 @@ from app.models.document import Document
 
 
 class DocumentRepository:
+    """Stages changes but never commits: the service decides where a unit of
+    work ends, so several writes can succeed or fail together."""
+
     def __init__(self, db: Session) -> None:
         self.db = db
 
     def create(self, document: Document) -> Document:
         self.db.add(document)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(document)
         return document
+
+    def commit(self) -> None:
+        self.db.commit()
 
     # There is deliberately no unscoped read. Ownership is part of the query
     # itself, so no caller can fetch a document and forget to check whose it is.
