@@ -16,18 +16,24 @@ class DocumentRepository:
         self.db.refresh(document)
         return document
 
-    def get_by_id(self, document_id: uuid.UUID) -> Document | None:
+    # There is deliberately no unscoped read. Ownership is part of the query
+    # itself, so no caller can fetch a document and forget to check whose it is.
+
+    def get_for_owner(
+        self, document_id: uuid.UUID, owner_id: uuid.UUID
+    ) -> Document | None:
         stmt = (
             select(Document)
             .options(selectinload(Document.insight))
-            .where(Document.id == document_id)
+            .where(Document.id == document_id, Document.owner_id == owner_id)
         )
         return self.db.scalars(stmt).first()
 
-    def list_all(self) -> list[Document]:
+    def list_for_owner(self, owner_id: uuid.UUID) -> list[Document]:
         stmt = (
             select(Document)
             .options(selectinload(Document.insight))
+            .where(Document.owner_id == owner_id)
             .order_by(Document.created_at.desc())
         )
         return list(self.db.scalars(stmt))

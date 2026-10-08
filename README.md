@@ -4,10 +4,15 @@ Document ingestion and insight service, built phase by phase.
 
 ## API
 
+- `POST /auth/register` - create an account (email + password, 8–128 chars)
+- `POST /auth/login` - exchange credentials for a bearer token
 - `POST /documents` - submit title + text, get insights back
-- `GET /documents` - list all documents
-- `GET /documents/{id}` - fetch one document
+- `GET /documents` - list **your** documents, newest first
+- `GET /documents/{id}` - fetch one of **your** documents
+- `GET /admin/users` - list every account (admin only)
 - `GET /health` - health check
+
+Everything under `/documents` and `/admin` needs an `Authorization: Bearer <token>` header.
 
 Insights per document:
 
@@ -18,6 +23,31 @@ Insights per document:
 
 > **Note:** documents and insights are stored in Postgres. Schema is versioned with Alembic migrations, which run automatically on container startup.
 
+## Authentication
+
+```powershell
+curl.exe -X POST localhost:8000/auth/register -H "Content-Type: application/json" `
+  -d '{\"email\": \"sam@example.com\", \"password\": \"correct-horse-battery\"}'
+
+curl.exe -X POST localhost:8000/auth/login -H "Content-Type: application/json" `
+  -d '{\"email\": \"sam@example.com\", \"password\": \"correct-horse-battery\"}'
+# -> {"access_token": "eyJ...", "token_type": "bearer", "expires_in": 3600}
+
+curl.exe localhost:8000/documents -H "Authorization: Bearer eyJ..."
+```
+
+In the interactive docs, click **Authorize** and paste the `access_token`.
+
+- Passwords are stored as argon2id hashes and never returned or logged.
+- Tokens are HS256 JWTs signed with `JWT_SECRET` and expire after `ACCESS_TOKEN_EXPIRE_MINUTES` (default 60). They carry only the user id. Role and active status are read from the database on every request, so disabling or demoting someone takes effect immediately.
+- Documents belong to the user who created them. Another user's document returns **404**, exactly like one that doesn't exist, so ids can't be probed.
+- A missing, malformed or expired token gets **401** (with `WWW-Authenticate: Bearer`). A disabled account or a non-admin on an admin route gets **403**.
+- Deleting a user deletes their documents. Disabling them (`is_active = false`) is the reversible option.
+- There is no endpoint for granting the admin role. Promote a user directly in the database:
+
+  ```powershell
+  docker compose exec db psql -U digest -d digest -c "UPDATE users SET role = 'admin' WHERE email = 'sam@example.com';"
+  ```
 ## Errors
 
 Every failure returns the same shape, whatever caused it — a known application error, a rejected payload, or an unhandled crash:
@@ -31,7 +61,7 @@ Every failure returns the same shape, whatever caused it — a known application
 }
 ```
 
-A validation failure adds a `details` key holding the per-field errors; it is omitted entirely otherwise, rather than sent as `null`. `request_id` matches the `X-Request-ID` response header and is the value to quote when reporting a problem.
+A validation failure adds a `details` key holding the per-field errors (`type`, `loc`, `msg`, but never the rejected value itself, which could be a password); it is omitted entirely otherwise, rather than sent as `null`. `request_id` matches the `X-Request-ID` response header and is the value to quote when reporting a problem.
 
 Services raise domain exceptions from `app/core/exceptions.py` (`DocumentNotFoundError`, etc.) and never mention HTTP. Handlers registered in `app/main.py` map those to status codes at the edge — so the status code for a rule lives in exactly one place, and services stay testable without a `TestClient`.
 
@@ -62,6 +92,8 @@ To trace a failure: pull the `request_id` from the error response, then filter l
 
 ```powershell
 Copy-Item .env.example .env
+# Replace JWT_SECRET in .env with a real random value - the app won't start without one:
+python -c "import secrets; print(secrets.token_urlsafe(48))"
 docker compose up --build
 ```
 
@@ -77,6 +109,7 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements-dev.txt
 $env:DATABASE_URL = "postgresql+psycopg://digest:digest@localhost:5433/digest"
+$env:JWT_SECRET = python -c "import secrets; print(secrets.token_urlsafe(48))"
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
