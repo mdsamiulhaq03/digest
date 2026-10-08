@@ -1,18 +1,12 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-from app.core.db import get_db
 from app.models.user import User
 from app.repositories.document_repository import DocumentRepository
-from app.routers.dependencies import get_active_user
+from app.routers.dependencies import get_active_user, get_document_repository
 from app.schemas.document import DocumentCreate, DocumentListResponse, DocumentResponse
 from app.services import document_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-
-
-def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository:
-    return DocumentRepository(db)
 
 
 @router.post("", response_model=DocumentResponse, status_code=201)

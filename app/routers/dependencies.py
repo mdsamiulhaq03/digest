@@ -19,6 +19,7 @@ from app.core.db import get_db
 from app.core.exceptions import InvalidTokenError, PermissionDeniedError
 from app.core.security import decode_access_token
 from app.models.user import User, UserRole
+from app.repositories.document_repository import DocumentRepository
 from app.repositories.user_repository import UserRepository
 
 # auto_error=False: a missing header comes back as None so it can be raised as
@@ -28,6 +29,10 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
+
+
+def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository:
+    return DocumentRepository(db)
 
 
 def get_current_user(

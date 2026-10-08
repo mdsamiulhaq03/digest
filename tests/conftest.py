@@ -1,14 +1,12 @@
-import uuid
 from collections.abc import Iterator
-from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import text
 
 from app.core.db import SessionLocal
 from app.main import app
-from app.models.user import User
 from app.routers.dependencies import get_active_user
+from tests.factories import make_user
 
 
 def _truncate() -> None:
@@ -36,13 +34,6 @@ def as_some_user() -> Iterator[None]:
     """Stand in for a logged-in user on tests that never reach the database -
     the real token check has to load the user, which needs Postgres. The auth
     chain itself is covered in test_auth_dependencies.py."""
-    app.dependency_overrides[get_active_user] = lambda: User(
-        id=uuid.uuid4(),
-        email="stub@example.com",
-        password_hash="unused",
-        role="user",
-        is_active=True,
-        created_at=datetime.now(UTC),
-    )
+    app.dependency_overrides[get_active_user] = lambda: make_user()
     yield
     app.dependency_overrides.pop(get_active_user)

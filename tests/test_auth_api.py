@@ -4,11 +4,11 @@ from fastapi.testclient import TestClient
 from app.core.request_context import REQUEST_ID_HEADER
 from app.core.security import decode_access_token
 from app.main import app
+from tests.factories import PASSWORD
 
 client = TestClient(app)
 
 EMAIL = "sam@example.com"
-PASSWORD = "correct-horse-battery"
 
 
 def _register(email: str = EMAIL, password: str = PASSWORD):

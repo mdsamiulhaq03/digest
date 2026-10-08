@@ -1,3 +1,4 @@
+import re
 import time
 import uuid
 
@@ -8,12 +9,23 @@ from starlette.responses import Response
 
 from app.core.request_context import REQUEST_ID_HEADER, set_request_id
 
+# A client-supplied id is written into every log line for the request, so it
+# is only trusted if it is short and plain. Anything else - oversized, or
+# carrying newlines or quotes that could forge log entries - is replaced.
+_SAFE_REQUEST_ID = re.compile(r"[A-Za-z0-9._-]{1,128}")
+
+
+def _resolve_request_id(client_value: str | None) -> str:
+    if client_value and _SAFE_REQUEST_ID.fullmatch(client_value):
+        return client_value
+    return str(uuid.uuid4())
+
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        request_id = request.headers.get(REQUEST_ID_HEADER, str(uuid.uuid4()))
+        request_id = _resolve_request_id(request.headers.get(REQUEST_ID_HEADER))
         set_request_id(request_id)
 
         start = time.perf_counter()

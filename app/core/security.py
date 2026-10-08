@@ -48,13 +48,16 @@ def spend_password_check(password: str) -> None:
     verify_password(_decoy_hash(), password)
 
 
+def access_token_lifetime() -> timedelta:
+    return timedelta(minutes=get_settings().access_token_expire_minutes)
+
+
 def create_access_token(user_id: uuid.UUID) -> str:
     # Only the identity goes in the token. Role and active flag are read from
     # the database on every request, so a demotion or deactivation takes effect
     # immediately instead of when the token expires.
     now = datetime.now(UTC)
-    expires_at = now + timedelta(minutes=get_settings().access_token_expire_minutes)
-    claims = {"sub": str(user_id), "iat": now, "exp": expires_at}
+    claims = {"sub": str(user_id), "iat": now, "exp": now + access_token_lifetime()}
     return jwt.encode(claims, get_settings().jwt_secret, algorithm=JWT_ALGORITHM)
 
 

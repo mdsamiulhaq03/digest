@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import asdict
 
 from loguru import logger
 
@@ -30,9 +31,8 @@ def _to_response(document: Document) -> DocumentResponse:
 def create_document(
     payload: DocumentCreate, owner: User, repo: DocumentRepository
 ) -> DocumentResponse:
-    insight_data = compute_insights(payload.text)
     document = Document(title=payload.title, text=payload.text, owner_id=owner.id)
-    document.insight = Insight(**insight_data)
+    document.insight = Insight(**asdict(compute_insights(payload.text)))
     created = repo.create(document)
     logger.info("document created", document_id=str(created.id), owner_id=str(owner.id))
     return _to_response(created)
@@ -47,16 +47,20 @@ def list_documents(owner: User, repo: DocumentRepository) -> DocumentListRespons
 def get_document(
     document_id: str, owner: User, repo: DocumentRepository
 ) -> DocumentResponse:
-    try:
-        document_uuid = uuid.UUID(document_id)
-    except ValueError:
-        logger.info("document not found", document_id=document_id)
-        raise DocumentNotFoundError(document_id) from None
-
-    # "Doesn't exist" and "exists but isn't yours" are the same 404, so a
-    # caller can't probe ids to learn which documents exist.
-    document = repo.get_for_owner(document_uuid, owner.id)
+    # A malformed id, a missing document and someone else's document are all
+    # the same 404, so a caller can't probe ids to learn which documents exist.
+    document = _find_owned_document(document_id, owner, repo)
     if document is None:
         logger.info("document not found", document_id=document_id)
         raise DocumentNotFoundError(document_id)
     return _to_response(document)
+
+
+def _find_owned_document(
+    document_id: str, owner: User, repo: DocumentRepository
+) -> Document | None:
+    try:
+        document_uuid = uuid.UUID(document_id)
+    except ValueError:
+        return None
+    return repo.get_for_owner(document_uuid, owner.id)

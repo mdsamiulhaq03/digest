@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from typing import Any
 
-from fastapi import Request
+from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -50,7 +50,11 @@ async def validation_error_handler(
         {key: error[key] for key in ("type", "loc", "msg") if key in error}
         for error in exc.errors()
     ]
-    return _error_response(422, "Request validation failed", details=details)
+    return _error_response(
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "Request validation failed",
+        details=details,
+    )
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -58,4 +62,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
     # a generic message - an exception string can carry a query, a file path or
     # a connection string.
     logger.exception("unhandled exception")
-    return _error_response(500, "Internal server error")
+    return _error_response(
+        status.HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error"
+    )

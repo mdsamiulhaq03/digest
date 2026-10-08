@@ -2,12 +2,16 @@
 
 import re
 from collections import Counter
+from dataclasses import dataclass
 
 _WORD_RE = re.compile(r"[A-Za-z']+")
 _SENTENCE_RE = re.compile(r"[.!?]+")
 _PARAGRAPH_RE = re.compile(r"\n\s*\n")
 
 WORDS_PER_MINUTE = 200
+SECONDS_PER_MINUTE = 60
+TOP_WORDS_LIMIT = 10
+DECIMAL_PLACES = 2
 
 _STOPWORDS = {
     "a",
@@ -74,37 +78,54 @@ _STOPWORDS = {
 }
 
 
-def compute_insights(text: str) -> dict:
-    char_count = len(text)
-    char_count_no_whitespace = len("".join(text.split()))
+@dataclass(frozen=True)
+class TextInsights:
+    char_count: int
+    char_count_no_whitespace: int
+    word_count: int
+    unique_word_count: int
+    sentence_count: int
+    paragraph_count: int
+    average_word_length: float
+    top_words: list[str]
+    estimated_reading_time_seconds: float
 
+
+def compute_insights(text: str) -> TextInsights:
     words = _WORD_RE.findall(text)
-    word_count = len(words)
-    lowered_words = [w.lower() for w in words]
-    unique_word_count = len(set(lowered_words))
-
-    sentence_count = len([s for s in _SENTENCE_RE.split(text) if s.strip()])
-
-    paragraphs = [p for p in _PARAGRAPH_RE.split(text) if p.strip()]
-    paragraph_count = len(paragraphs)
-
-    average_word_length = (
-        round(sum(len(w) for w in words) / word_count, 2) if word_count else 0.0
+    lowered_words = [word.lower() for word in words]
+    return TextInsights(
+        char_count=len(text),
+        char_count_no_whitespace=_count_non_whitespace(text),
+        word_count=len(words),
+        unique_word_count=len(set(lowered_words)),
+        sentence_count=_count_non_blank(_SENTENCE_RE.split(text)),
+        paragraph_count=_count_non_blank(_PARAGRAPH_RE.split(text)),
+        average_word_length=_average_length(words),
+        top_words=_top_words(lowered_words),
+        estimated_reading_time_seconds=_reading_time_seconds(len(words)),
     )
 
-    meaningful_words = [w for w in lowered_words if w not in _STOPWORDS]
-    top_words = [word for word, _ in Counter(meaningful_words).most_common(10)]
 
-    estimated_reading_time_seconds = round((word_count / WORDS_PER_MINUTE) * 60, 2)
+def _count_non_whitespace(text: str) -> int:
+    return len("".join(text.split()))
 
-    return {
-        "char_count": char_count,
-        "char_count_no_whitespace": char_count_no_whitespace,
-        "word_count": word_count,
-        "unique_word_count": unique_word_count,
-        "sentence_count": sentence_count,
-        "paragraph_count": paragraph_count,
-        "average_word_length": average_word_length,
-        "top_words": top_words,
-        "estimated_reading_time_seconds": estimated_reading_time_seconds,
-    }
+
+def _count_non_blank(chunks: list[str]) -> int:
+    return sum(1 for chunk in chunks if chunk.strip())
+
+
+def _average_length(words: list[str]) -> float:
+    if not words:
+        return 0.0
+    return round(sum(len(word) for word in words) / len(words), DECIMAL_PLACES)
+
+
+def _top_words(lowered_words: list[str]) -> list[str]:
+    meaningful = [word for word in lowered_words if word not in _STOPWORDS]
+    return [word for word, _ in Counter(meaningful).most_common(TOP_WORDS_LIMIT)]
+
+
+def _reading_time_seconds(word_count: int) -> float:
+    minutes = word_count / WORDS_PER_MINUTE
+    return round(minutes * SECONDS_PER_MINUTE, DECIMAL_PLACES)

@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import Iterator
 
 import pytest
@@ -40,6 +41,18 @@ def test_response_carries_a_generated_request_id() -> None:
 def test_client_supplied_request_id_is_reused() -> None:
     response = client.get("/health", headers={REQUEST_ID_HEADER: "caller-abc-123"})
     assert response.headers[REQUEST_ID_HEADER] == "caller-abc-123"
+
+
+@pytest.mark.parametrize(
+    "unsafe_id",
+    ["x" * 129, 'abc", "level": "CRITICAL', "has spaces"],
+    ids=["oversized", "log-forging", "spaces"],
+)
+def test_unsafe_client_request_id_is_replaced(unsafe_id: str) -> None:
+    response = client.get("/health", headers={REQUEST_ID_HEADER: unsafe_id})
+    returned_id = response.headers[REQUEST_ID_HEADER]
+    assert returned_id != unsafe_id
+    assert uuid.UUID(returned_id)
 
 
 def test_unauthenticated_uses_the_error_contract() -> None:

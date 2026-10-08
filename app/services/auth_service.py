@@ -1,8 +1,8 @@
 from loguru import logger
 
-from app.core.config import get_settings
 from app.core.exceptions import EmailAlreadyRegisteredError, InvalidCredentialsError
 from app.core.security import (
+    access_token_lifetime,
     create_access_token,
     hash_password,
     spend_password_check,
@@ -51,5 +51,5 @@ def login(payload: LoginRequest, repo: UserRepository) -> TokenResponse:
     logger.info("user logged in", user_id=str(user.id))
     return TokenResponse(
         access_token=create_access_token(user.id),
-        expires_in=get_settings().access_token_expire_minutes * 60,
+        expires_in=int(access_token_lifetime().total_seconds()),
     )

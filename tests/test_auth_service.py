@@ -1,5 +1,4 @@
 import uuid
-from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -9,8 +8,7 @@ from app.core.security import decode_access_token, hash_password
 from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterRequest
 from app.services import auth_service
-
-PASSWORD = "correct-horse-battery"
+from tests.factories import PASSWORD, make_user
 
 
 class FakeUserRepository:
@@ -22,14 +20,7 @@ class FakeUserRepository:
     def create(self, user: User) -> User:
         if user.email in self._users:
             raise EmailAlreadyRegisteredError()
-        stored = User(
-            id=uuid.uuid4(),
-            email=user.email,
-            password_hash=user.password_hash,
-            role="user",
-            is_active=True,
-            created_at=datetime.now(UTC),
-        )
+        stored = make_user(email=user.email, password_hash=user.password_hash)
         self._users = {**self._users, stored.email: stored}
         return stored
 
@@ -41,13 +32,8 @@ class FakeUserRepository:
 
 
 def _existing_user(email: str = "sam@example.com", is_active: bool = True) -> User:
-    return User(
-        id=uuid.uuid4(),
-        email=email,
-        password_hash=hash_password(PASSWORD),
-        role="user",
-        is_active=is_active,
-        created_at=datetime.now(UTC),
+    return make_user(
+        email=email, password_hash=hash_password(PASSWORD), is_active=is_active
     )
 
 

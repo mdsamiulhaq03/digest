@@ -17,24 +17,14 @@ from app.core.config import get_settings
 from app.core.error_handlers import app_error_handler
 from app.core.exceptions import AppError
 from app.core.security import JWT_ALGORITHM, create_access_token
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.routers.dependencies import (
     get_active_user,
     get_current_user,
     get_user_repository,
     require_admin,
 )
-
-
-def _user(role: str = "user", is_active: bool = True) -> User:
-    return User(
-        id=uuid.uuid4(),
-        email=f"{uuid.uuid4().hex}@example.com",
-        password_hash="unused",
-        role=role,
-        is_active=is_active,
-        created_at=datetime.now(UTC),
-    )
+from tests.factories import make_user
 
 
 class FakeUserRepository:
@@ -45,9 +35,9 @@ class FakeUserRepository:
         return self._users.get(user_id)
 
 
-MEMBER = _user()
-ADMIN = _user(role="admin")
-DISABLED = _user(is_active=False)
+MEMBER = make_user()
+ADMIN = make_user(role=UserRole.ADMIN)
+DISABLED = make_user(is_active=False)
 
 app = FastAPI()
 app.add_exception_handler(AppError, app_error_handler)
