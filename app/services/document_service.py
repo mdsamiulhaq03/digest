@@ -5,6 +5,7 @@ from loguru import logger
 from app.core.exceptions import DocumentNotFoundError
 from app.models.document import Document
 from app.models.insight import Insight
+from app.models.user import User
 from app.repositories.document_repository import DocumentRepository
 from app.schemas.document import (
     DocumentCreate,
@@ -27,30 +28,34 @@ def _to_response(document: Document) -> DocumentResponse:
 
 
 def create_document(
-    payload: DocumentCreate, repo: DocumentRepository
+    payload: DocumentCreate, owner: User, repo: DocumentRepository
 ) -> DocumentResponse:
     insight_data = compute_insights(payload.text)
-    document = Document(title=payload.title, text=payload.text)
+    document = Document(title=payload.title, text=payload.text, owner_id=owner.id)
     document.insight = Insight(**insight_data)
     created = repo.create(document)
-    logger.info("document created", document_id=str(created.id))
+    logger.info("document created", document_id=str(created.id), owner_id=str(owner.id))
     return _to_response(created)
 
 
-def list_documents(repo: DocumentRepository) -> DocumentListResponse:
-    documents = repo.list_all()
+def list_documents(owner: User, repo: DocumentRepository) -> DocumentListResponse:
+    documents = repo.list_for_owner(owner.id)
     responses = [_to_response(document) for document in documents]
     return DocumentListResponse(documents=responses, total=len(responses))
 
 
-def get_document(document_id: str, repo: DocumentRepository) -> DocumentResponse:
+def get_document(
+    document_id: str, owner: User, repo: DocumentRepository
+) -> DocumentResponse:
     try:
         document_uuid = uuid.UUID(document_id)
     except ValueError:
         logger.info("document not found", document_id=document_id)
         raise DocumentNotFoundError(document_id) from None
 
-    document = repo.get_by_id(document_uuid)
+    # "Doesn't exist" and "exists but isn't yours" are the same 404, so a
+    # caller can't probe ids to learn which documents exist.
+    document = repo.get_for_owner(document_uuid, owner.id)
     if document is None:
         logger.info("document not found", document_id=document_id)
         raise DocumentNotFoundError(document_id)

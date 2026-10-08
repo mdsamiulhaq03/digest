@@ -42,7 +42,18 @@ def test_client_supplied_request_id_is_reused() -> None:
     assert response.headers[REQUEST_ID_HEADER] == "caller-abc-123"
 
 
-def test_not_found_uses_the_error_contract() -> None:
+def test_unauthenticated_uses_the_error_contract() -> None:
+    response = client.get("/documents", headers={REQUEST_ID_HEADER: "r0"})
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "error": {"message": "Invalid authentication token", "request_id": "r0"}
+    }
+    assert response.headers[REQUEST_ID_HEADER] == "r0"
+    assert response.headers["WWW-Authenticate"] == "Bearer"
+
+
+def test_not_found_uses_the_error_contract(as_some_user: None) -> None:
     response = client.get(
         "/documents/does-not-exist", headers={REQUEST_ID_HEADER: "r1"}
     )
@@ -54,7 +65,7 @@ def test_not_found_uses_the_error_contract() -> None:
     assert response.headers[REQUEST_ID_HEADER] == "r1"
 
 
-def test_validation_error_uses_the_error_contract() -> None:
+def test_validation_error_uses_the_error_contract(as_some_user: None) -> None:
     response = client.post(
         "/documents",
         json={"title": "", "text": "hi"},
