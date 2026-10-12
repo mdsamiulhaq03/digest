@@ -13,7 +13,7 @@ graphify-out
 # coverage
 .coverage
 htmlcov/
-
+.playwright-mcp/
 # OS
 .DS_Store
 Thumbs.db
@@ -28,3 +28,4 @@ docs/phase-*.md
 # frontend (Next.js) - frontend/.gitignore covers the details
 node_modules/
 .next/
+.neon

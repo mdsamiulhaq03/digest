@@ -35,6 +35,9 @@ services:
     env_file:
       - .env
     environment:
+      # Always the db container above. `neon deploy` writes Neon's URL into
+      # .env as DATABASE_URL; this wins over env_file, so local dev stays local.
+      DATABASE_URL: postgresql+psycopg://digest:digest@db:5432/digest
       # One-click demo logins on the login page. On for this local stack only;
       # the setting defaults to off everywhere else.
       DEMO_ACCOUNTS: "true"
@@ -64,6 +67,9 @@ services:
       target: dev
     env_file:
       - .env
+    environment:
+      # Same as app: the local db container, whatever .env says.
+      DATABASE_URL: postgresql+psycopg://digest:digest@db:5432/digest
     volumes:
       - ./backend/app:/app/app
       - uploads:/data/uploads
