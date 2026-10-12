@@ -159,5 +159,15 @@ def test_rerunning_a_job_replaces_insights_instead_of_duplicating(
     assert _count(CsvInsight) == 1
 
 
-def test_unknown_job_id_is_skipped(queue: RecordingQueue) -> None:
-    process_job(uuid.uuid4(), queue)  # must not raise
+def test_unknown_job_id_changes_nothing(
+    upload_dir: Path, queue: RecordingQueue
+) -> None:
+    job_id, _ = _uploaded_job("notes.txt", b"Hello world.")
+
+    process_job(uuid.uuid4(), queue)
+
+    job = _job(job_id)
+    assert job.state == JobState.QUEUED
+    assert job.attempts == 0
+    assert _count(Insight) == 0
+    assert queue.job_ids == [job_id]  # only the upload's own push

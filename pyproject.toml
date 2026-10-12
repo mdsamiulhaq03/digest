@@ -1,7 +1,24 @@
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["fastapi.Depends"]
 
+[tool.ruff.lint.per-file-ignores]
+# Switches to the test database before importing the app; see the file.
+"tests/conftest.py" = ["E402"]
+
 [tool.pytest.ini_options]
 markers = [
-    "integration: requires a real Postgres database (excluded from CI until Phase 7)",
+    "integration: needs real Postgres and Redis (CI provides both)",
 ]
+
+[tool.coverage.run]
+source = ["app"]
+# Counts both sides of every `if`, not just whether the line ran.
+branch = true
+
+[tool.coverage.report]
+# Set at what the suite reached in Phase 7; raise it, never lower it.
+# Two decimals, because with whole numbers 96.5% would round up and pass.
+fail_under = 97
+precision = 2
+show_missing = true
+skip_covered = true
