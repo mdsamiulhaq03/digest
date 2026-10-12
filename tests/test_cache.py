@@ -1,11 +1,25 @@
 import uuid
+from collections.abc import Iterator
 
+import pytest
+from loguru import logger
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app.core.cache import CACHE_VERSION, JsonCache, document_key
 from app.core.circuit import CircuitBreaker
 from tests.factories import FakeRedis
+
+
+@pytest.fixture
+def log_messages() -> Iterator[list[str]]:
+    """The messages of warnings logged during the test."""
+    messages: list[str] = []
+    sink_id = logger.add(
+        lambda message: messages.append(message.record["message"]), level="WARNING"
+    )
+    yield messages
+    logger.remove(sink_id)
 
 
 class FakeClock:
@@ -47,10 +61,27 @@ def test_delete_removes_the_entry() -> None:
 
 def test_redis_down_is_a_miss_not_an_error() -> None:
     for error in (RedisConnectionError("down"), RedisTimeoutError("slow")):
-        cache = JsonCache(FakeRedis(error=error), 60)
-        assert cache.get("k") is None
-        cache.set("k", {"a": 1})  # must not raise
-        cache.delete("k")  # must not raise
+        assert JsonCache(FakeRedis(error=error), 60).get("k") is None
+
+
+def test_a_failed_write_is_logged_and_opens_the_breaker(
+    log_messages: list[str],
+) -> None:
+    client = FakeRedis()
+    cache = JsonCache(client, 60, CircuitBreaker(cooldown_seconds=5, clock=FakeClock()))
+    client.error = RedisConnectionError("down")
+
+    cache.set("k", {"a": 1})
+
+    assert "cache write failed" in log_messages
+    client.error = None
+    client.store = {"k": '{"a": 1}'}
+    assert cache.get("k") is None  # breaker open: Redis not even asked
+
+
+def test_a_failed_delete_is_logged_not_raised(log_messages: list[str]) -> None:
+    JsonCache(FakeRedis(error=RedisConnectionError("down")), 60).delete("k")
+    assert "cache delete failed" in log_messages
 
 
 def test_after_a_failure_redis_is_skipped_until_the_cooldown_ends() -> None:

@@ -4,14 +4,19 @@ import threading
 import uuid
 
 import pytest
+from redis.exceptions import ConnectionError as RedisConnectionError
+from sqlalchemy.exc import OperationalError
 
 from app import worker
 
 
 class ScriptedQueue:
-    """Hands out a fixed sequence of raw ids, then signals stop."""
+    """Hands out a fixed sequence of raw ids, then signals stop. An exception
+    in the sequence is raised instead, as Redis would when it is down."""
 
-    def __init__(self, raw_ids: list[str | None], stop: threading.Event) -> None:
+    def __init__(
+        self, raw_ids: list[str | None | Exception], stop: threading.Event
+    ) -> None:
         self._raw_ids = list(raw_ids)
         self._stop = stop
 
@@ -19,7 +24,10 @@ class ScriptedQueue:
         if not self._raw_ids:
             self._stop.set()
             return None
-        return self._raw_ids.pop(0)
+        item = self._raw_ids.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
 
 
 @pytest.fixture
@@ -44,6 +52,30 @@ def test_malformed_ids_are_discarded_not_fatal(processed: list[uuid.UUID]) -> No
     stop = threading.Event()
     worker.run_loop(ScriptedQueue(["not-a-uuid", str(good)], stop), stop)
     assert processed == [good]
+
+
+def test_redis_going_down_is_waited_out_not_fatal(
+    processed: list[uuid.UUID], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(worker, "REDIS_RETRY_SECONDS", 0)
+    job_id = uuid.uuid4()
+    stop = threading.Event()
+    outage = [RedisConnectionError("down"), RedisConnectionError("still down")]
+    worker.run_loop(ScriptedQueue([*outage, str(job_id)], stop), stop)
+    assert processed == [job_id]
+
+
+def test_a_sweep_that_cannot_reach_postgres_does_not_stop_the_worker(
+    processed: list[uuid.UUID], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def failing_sweep(queue: object) -> None:
+        raise OperationalError("SELECT 1", {}, Exception("connection refused"))
+
+    monkeypatch.setattr(worker, "sweep", failing_sweep)
+    job_id = uuid.uuid4()
+    stop = threading.Event()
+    worker.run_loop(ScriptedQueue([str(job_id)], stop), stop)
+    assert processed == [job_id]
 
 
 def test_stop_lets_the_current_job_finish(monkeypatch: pytest.MonkeyPatch) -> None:

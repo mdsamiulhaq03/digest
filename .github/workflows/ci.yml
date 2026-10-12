@@ -29,11 +29,33 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    # The same images Compose runs. The tests create their own `digest_test`
+    # database and migrate it, and use Redis database 15 - see tests/database.py.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: digest
+          POSTGRES_PASSWORD: digest
+          POSTGRES_DB: digest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U digest -d digest"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
-      # No real Postgres in CI yet (that's Phase 7). This only needs to satisfy
-      # Settings validation at import time; tests that need a real connection
-      # are excluded below via `-m "not integration"`.
-      DATABASE_URL: postgresql+psycopg://ci:ci@localhost:5432/ci
+      DATABASE_URL: postgresql+psycopg://digest:digest@localhost:5432/digest
       JWT_SECRET: ci-only-not-a-real-secret-0123456789abcdef
       REDIS_URL: redis://localhost:6379/0
     steps:
@@ -42,4 +64,77 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
-      - run: pytest -m "not integration"
+      # Every test, integration included. Fails below the coverage threshold
+      # in pyproject.toml.
+      - run: pytest --cov
+      - name: Coverage summary
+        if: always()
+        run: coverage report --format=markdown --fail-under=0 >> "$GITHUB_STEP_SUMMARY"
+
+  # A broken Dockerfile should fail the PR, not the deploy: build both targets,
+  # then prove the production image is lean, unprivileged, and actually starts.
+  image:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: digest
+          POSTGRES_PASSWORD: digest
+          POSTGRES_DB: digest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U digest -d digest"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build runtime image
+        run: docker build --target runtime -t digest:ci .
+      - name: Build dev image
+        run: docker build --target dev -t digest:ci-dev .
+      # `! cmd` never fails a step under `set -e`, so each check is an
+      # explicit if/exit.
+      - name: Runtime image runs as non-root, with no test or lint tooling
+        run: |
+          user=$(docker run --rm --entrypoint whoami digest:ci)
+          if [ "$user" != "appuser" ]; then echo "runs as $user"; exit 1; fi
+          if docker run --rm --entrypoint python digest:ci -c "import pytest"; then
+            echo "pytest is in the runtime image"; exit 1
+          fi
+          if docker run --rm --entrypoint sh digest:ci -c "command -v ruff"; then
+            echo "ruff is in the runtime image"; exit 1
+          fi
+      - name: Runtime image migrates the database and serves requests
+        run: |
+          docker run -d --name app --network host \
+            -e DATABASE_URL=postgresql+psycopg://digest:digest@localhost:5432/digest \
+            -e JWT_SECRET=ci-only-not-a-real-secret-0123456789abcdef \
+            -e REDIS_URL=redis://localhost:6379/0 \
+            digest:ci
+          # Poll with a deadline: the entrypoint migrates before uvicorn starts.
+          for _ in $(seq 1 30); do
+            curl -fs localhost:8000/health && break
+            sleep 1
+          done
+          curl -fs localhost:8000/health
+          # Registering writes to the users table, so this fails unless the
+          # migrations really ran.
+          status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            localhost:8000/auth/register -H "Content-Type: application/json" \
+            -d '{"email": "ci@example.com", "password": "correct-horse-battery"}')
+          if [ "$status" != "201" ]; then echo "register returned $status"; exit 1; fi
+      - name: Container logs
+        if: failure()
+        run: docker logs app
