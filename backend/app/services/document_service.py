@@ -9,6 +9,7 @@ from app.core.cache import JsonCache, document_key
 from app.core.exceptions import DocumentNotFoundError
 from app.models.document import Document
 from app.models.insight import Insight
+from app.models.job import JobState
 from app.models.user import User
 from app.repositories.document_repository import DocumentRepository
 from app.schemas.document import (
@@ -16,6 +17,7 @@ from app.schemas.document import (
     DocumentCreate,
     DocumentListResponse,
     DocumentResponse,
+    DocumentStatus,
     InsightsSchema,
 )
 from app.utils.insights import compute_insights
@@ -25,6 +27,8 @@ def _to_response(document: Document) -> DocumentResponse:
     return DocumentResponse(
         id=document.id,
         title=document.title,
+        status=_status(document),
+        job_id=document.job.id if document.job is not None else None,
         text=document.text,
         original_filename=document.original_filename,
         content_type=document.content_type,
@@ -79,6 +83,15 @@ def get_document(
     if _is_complete(document):
         cache.set(key, response.model_dump(mode="json"))
     return response
+
+
+def _status(document: Document) -> DocumentStatus:
+    if _is_complete(document):
+        return "ready"
+    if document.job is not None and document.job.state == JobState.FAILED:
+        return "failed"
+    # Queued or running - including a failed attempt waiting for its retry.
+    return "processing"
 
 
 def _is_complete(document: Document) -> bool:

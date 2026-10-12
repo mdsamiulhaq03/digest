@@ -164,7 +164,9 @@ def test_a_new_cache_version_ignores_every_old_entry(
     # An entry in an old response shape, as left by the previous deploy.
     cache_redis.store = {old_key: json.dumps({"title": "old shape"})}
 
-    monkeypatch.setattr(cache_module, "CACHE_VERSION", "v2")
+    monkeypatch.setattr(
+        cache_module, "CACHE_VERSION", f"{cache_module.CACHE_VERSION}-next"
+    )
     response = _read(sam, document_id)
 
     assert response.json()["title"] == "Real title"

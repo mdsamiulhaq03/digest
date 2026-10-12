@@ -12,18 +12,20 @@ A route asks for the narrowest one it needs and receives a User, never a token.
 
 from functools import lru_cache
 
+import redis
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.core.cache import JsonCache, get_document_cache
+from app.core.cache import JsonCache, get_cache_client, get_document_cache
 from app.core.db import get_db
 from app.core.exceptions import InvalidTokenError, PermissionDeniedError
 from app.core.queue import JobQueue, get_redis
 from app.core.security import decode_access_token
 from app.models.user import User, UserRole
 from app.repositories.document_repository import DocumentRepository
+from app.repositories.health_repository import HealthRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.user_repository import UserRepository
 
@@ -54,6 +56,16 @@ def get_job_queue() -> JobQueue:
 
 def get_cache() -> JsonCache:
     return get_document_cache()
+
+
+def get_health_repository(db: Session = Depends(get_db)) -> HealthRepository:
+    return HealthRepository(db)
+
+
+def get_health_redis() -> redis.Redis:
+    # The cache's client: 0.2s timeouts and no retries, so a probe against a
+    # dead Redis answers fast instead of stalling past the probe's timeout.
+    return get_cache_client()
 
 
 def get_current_user(

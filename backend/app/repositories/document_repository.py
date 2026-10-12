@@ -45,5 +45,7 @@ class DocumentRepository:
 def _with_insights(stmt: Select[tuple[Document]]) -> Select[tuple[Document]]:
     # Loaded up front so a list never issues one extra query per document.
     return stmt.options(
-        selectinload(Document.insight), selectinload(Document.csv_insight)
+        selectinload(Document.insight),
+        selectinload(Document.csv_insight),
+        selectinload(Document.job),
     )

@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -44,15 +45,23 @@ class CsvInsightsSchema(BaseModel):
     columns: list[ColumnStatsSchema]
 
 
+DocumentStatus = Literal["ready", "processing", "failed"]
+
+
 class DocumentResponse(BaseModel):
     """Response shape returned for a single document.
 
     Pasted text has `text` and `insights`. An uploaded file has the file fields,
     and `insights` (.txt) or `csv_insights` (.csv) once its job has succeeded -
-    until then, both are null."""
+    until then, both are null.
+
+    `status` says which: ready (insights present), processing (its job is
+    queued or running) or failed (its job gave up; `job_id` says why)."""
 
     id: uuid.UUID
     title: str
+    status: DocumentStatus
+    job_id: uuid.UUID | None
     text: str | None
     original_filename: str | None
     content_type: str | None

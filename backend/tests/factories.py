@@ -69,7 +69,8 @@ def upload(
 
 
 class FakeRedis:
-    """Just enough of redis.Redis for JsonCache, with a switch to fail."""
+    """Just enough of redis.Redis for JsonCache and the readiness probe, with a
+    switch to fail."""
 
     def __init__(self, error: Exception | None = None) -> None:
         self.error = error
@@ -79,6 +80,10 @@ class FakeRedis:
     def _maybe_fail(self) -> None:
         if self.error:
             raise self.error
+
+    def ping(self) -> bool:
+        self._maybe_fail()
+        return True
 
     def get(self, key: str) -> str | None:
         self._maybe_fail()
