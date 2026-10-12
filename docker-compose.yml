@@ -67,6 +67,9 @@ services:
     entrypoint: ["python"]
     command: ["-m", "app.worker"]
     restart: unless-stopped
+    # On `docker compose stop`, the worker finishes the job it holds before
+    # exiting. This is how long Docker waits before resorting to SIGKILL.
+    stop_grace_period: 30s
     depends_on:
       app:
         condition: service_healthy

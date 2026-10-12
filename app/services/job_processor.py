@@ -6,7 +6,6 @@ import uuid
 from collections.abc import Callable
 
 from loguru import logger
-from redis.exceptions import RedisError
 from sqlalchemy.orm import Session
 
 from app.core import storage
@@ -14,7 +13,6 @@ from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.queue import JobQueue
 from app.models.document import Document
-from app.models.job import Job
 from app.repositories.insight_repository import InsightRepository
 from app.repositories.job_repository import JobRepository
 from app.utils.csv_insights import compute_csv_insights
@@ -44,19 +42,27 @@ def process_job(
             logger.info("job not claimable, skipped", job_id=str(job_id))
             return
         jobs.commit()
-        logger.info("job started", job_id=str(job_id), attempt=job.attempts)
+        # Captured now: after a rollback the session would reload `attempts`
+        # from the database, and it may no longer be ours.
+        attempt = job.attempts
+        logger.info("job started", job_id=str(job_id), attempt=attempt)
 
         try:
             _compute_and_store(jobs.document_for(job), InsightRepository(db))
-            # Insights and the success mark land in one commit: a job is never
-            # "succeeded" without its results, nor results left on a job that
-            # still looks unfinished.
-            jobs.mark_succeeded(job_id)
-            jobs.commit()
-            logger.info("job succeeded", job_id=str(job_id))
         except Exception as exc:  # noqa: BLE001 - every failure must be recorded
             db.rollback()
-            _record_failure(jobs, job, exc, queue)
+            _record_failure(jobs, job_id, attempt, exc, queue)
+            return
+
+        # Insights and the success mark land in one commit: a job is never
+        # "succeeded" without its results, nor results left on a job that
+        # still looks unfinished.
+        if jobs.mark_succeeded(job_id, attempt):
+            jobs.commit()
+            logger.info("job succeeded", job_id=str(job_id))
+        else:
+            db.rollback()
+            logger.warning("job claim lost before finishing", job_id=str(job_id))
 
 
 def _compute_and_store(document: Document, insights: InsightRepository) -> None:
@@ -83,25 +89,29 @@ def _read_text(document: Document) -> str:
 
 
 def _record_failure(
-    jobs: JobRepository, job: Job, exc: Exception, queue: JobQueue
+    jobs: JobRepository,
+    job_id: uuid.UUID,
+    attempt: int,
+    exc: Exception,
+    queue: JobQueue,
 ) -> None:
     permanent = isinstance(exc, PermanentJobError)
     message = str(exc) if permanent else UNEXPECTED_ERROR
     # The traceback is for the logs; the client only ever sees `message`.
     logger.opt(exception=exc).warning(
-        "job attempt failed", job_id=str(job.id), attempt=job.attempts
+        "job attempt failed", job_id=str(job_id), attempt=attempt
     )
 
-    if permanent or job.attempts >= get_settings().job_max_attempts:
-        jobs.mark_failed(job.id, message)
-        jobs.commit()
-        logger.warning("job failed", job_id=str(job.id), attempts=job.attempts)
-        return
-
-    jobs.requeue(job.id, message)
+    give_up = permanent or attempt >= get_settings().job_max_attempts
+    if give_up:
+        recorded = jobs.mark_failed(job_id, attempt, message)
+    else:
+        recorded = jobs.requeue(job_id, attempt, message)
     jobs.commit()
-    try:
-        queue.enqueue(job.id)
-    except RedisError:
-        # Still queued in Postgres, so the sweeper will find it.
-        logger.warning("re-enqueue failed, sweeper will retry", job_id=str(job.id))
+
+    if not recorded:
+        logger.warning("job claim lost before failing", job_id=str(job_id))
+    elif give_up:
+        logger.warning("job failed", job_id=str(job_id), attempts=attempt)
+    else:
+        queue.try_enqueue(job_id)

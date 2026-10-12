@@ -3,7 +3,6 @@ from pathlib import PureWindowsPath
 from typing import BinaryIO
 
 from loguru import logger
-from redis.exceptions import RedisError
 
 from app.core import storage
 from app.core.exceptions import UnsupportedFileTypeError
@@ -57,7 +56,9 @@ def accept_upload(
         storage.delete(storage_key)
         raise
 
-    _enqueue(queue, job.id)
+    # Committed as queued already, so the upload has succeeded either way;
+    # failing now would only make the client re-send a file we have stored.
+    queue.try_enqueue(job.id)
     logger.info(
         "upload accepted",
         document_id=str(document_id),
@@ -81,14 +82,3 @@ def _content_type(filename: str) -> str:
     if suffix not in CONTENT_TYPES:
         raise UnsupportedFileTypeError(sorted(CONTENT_TYPES))
     return CONTENT_TYPES[suffix]
-
-
-def _enqueue(queue: JobQueue, job_id: uuid.UUID) -> None:
-    # The job is already committed as queued, so the upload has succeeded
-    # either way. If Redis is down, the sweeper finds the job in Postgres and
-    # queues it later - failing the request now would only make the client
-    # retry an upload that is already safely stored.
-    try:
-        queue.enqueue(job_id)
-    except RedisError:
-        logger.warning("enqueue failed, sweeper will retry", job_id=str(job_id))

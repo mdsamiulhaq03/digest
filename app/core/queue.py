@@ -5,6 +5,8 @@ import uuid
 from functools import lru_cache
 
 import redis
+from loguru import logger
+from redis.exceptions import RedisError
 
 from app.core.config import get_settings
 
@@ -19,6 +21,19 @@ class JobQueue:
 
     def enqueue(self, job_id: uuid.UUID) -> None:
         self._client.lpush(JOB_QUEUE_KEY, str(job_id))
+
+    def try_enqueue(self, job_id: uuid.UUID) -> bool:
+        """Enqueue, or leave it to the sweeper if Redis is unavailable.
+
+        Only for jobs already committed as queued in Postgres: there, a lost
+        push just delays the job until the next sweep, so failing the caller
+        would gain nothing."""
+        try:
+            self.enqueue(job_id)
+        except RedisError:
+            logger.warning("enqueue failed, sweeper will retry", job_id=str(job_id))
+            return False
+        return True
 
     def dequeue(self, wait_seconds: int) -> str | None:
         """Block up to wait_seconds for the next id. Returned raw: whatever is

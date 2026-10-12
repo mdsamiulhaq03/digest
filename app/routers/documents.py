@@ -32,12 +32,13 @@ def create_document(
     return document_service.create_document(payload, user, repo)
 
 
-# BEFORE-MEASUREMENT VERSION (Phase 5, step 11): this is deliberately the
-# common mistake - an `async def` handler doing blocking work (disk writes,
-# database calls). Step 11 measures what that does to every other request,
-# then fixes it.
+# Plain `def`, not `async def`: everything below blocks - copying the file to
+# disk, the database writes, the Redis push. FastAPI runs a `def` handler in a
+# worker thread, so that blocking stays off the event loop. As `async def` it
+# ran on the loop itself and stalled every other request while it did, with
+# /health spiking to ~1.2s under ten concurrent uploads (see Phase 5 PR).
 @router.post("/upload", response_model=UploadAcceptedResponse, status_code=202)
-async def upload_document(
+def upload_document(
     response: Response,
     file: Annotated[UploadFile, File()],
     title: Annotated[str | None, Form(min_length=1, max_length=255)] = None,

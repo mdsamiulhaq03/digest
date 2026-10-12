@@ -79,3 +79,9 @@ class RecordingQueue:
         if self.fail:
             raise RedisConnectionError("redis is down")
         self.job_ids = [*self.job_ids, job_id]
+
+    def try_enqueue(self, job_id: uuid.UUID) -> bool:
+        if self.fail:
+            return False
+        self.enqueue(job_id)
+        return True
