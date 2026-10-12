@@ -1,0 +1,10 @@
+# Installed and built inside the image, never copied from the host
+node_modules
+.next
+
+# Env files (never bake secrets into the image)
+.env*
+
+# Docker itself
+Dockerfile
+.dockerignore

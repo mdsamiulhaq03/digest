@@ -25,3 +25,6 @@ Digest.md
 
 # phase writeups (local reference only)
 docs/phase-*.md
+# frontend (Next.js) - frontend/.gitignore covers the details
+node_modules/
+.next/

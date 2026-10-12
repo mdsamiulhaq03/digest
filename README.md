@@ -2,6 +2,24 @@
 
 Document ingestion and insight service, built phase by phase.
 
+## Repository layout
+
+```
+backend/            FastAPI API and worker (Python)
+  app/              the application - routers, services, repositories, models
+  tests/            pytest suite
+  scripts/          measurement scripts
+  Dockerfile        API/worker image (runtime and dev targets)
+frontend/           Next.js web app (TypeScript, App Router, Tailwind)
+  src/app/          pages and route handlers
+  src/lib/api.ts    the only code that calls the API
+  Dockerfile        web image
+docker-compose.yml  runs everything together
+.github/workflows/  CI
+```
+
+Each side has its own dependencies and tooling (`backend/requirements*.txt` and `backend/pyproject.toml`; `frontend/package.json`). Commands below say which folder to run them from.
+
 ## API
 
 - `POST /auth/register` - create an account (email + password, 8–128 chars)
@@ -98,7 +116,7 @@ Every failure returns the same shape, whatever caused it — a known application
 
 A validation failure adds a `details` key holding the per-field errors (`type`, `loc`, `msg`, but never the rejected value itself, which could be a password); it is omitted entirely otherwise, rather than sent as `null`. `request_id` matches the `X-Request-ID` response header and is the value to quote when reporting a problem.
 
-Services raise domain exceptions from `app/core/exceptions.py` (`DocumentNotFoundError`, etc.) and never mention HTTP. Handlers registered in `app/main.py` map those to status codes at the edge — so the status code for a rule lives in exactly one place, and services stay testable without a `TestClient`.
+Services raise domain exceptions from `backend/app/core/exceptions.py` (`DocumentNotFoundError`, etc.) and never mention HTTP. Handlers registered in `backend/app/main.py` map those to status codes at the edge — so the status code for a rule lives in exactly one place, and services stay testable without a `TestClient`.
 
 A crash returns `"Internal server error"` and nothing else. The exception type, message and traceback go to the logs only: an exception string can easily carry a file path, a query or a connection string.
 
@@ -132,7 +150,7 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 docker compose up --build
 ```
 
-This starts four services: `app` (the API), `worker`, `db` (Postgres) and `redis`. The API is available at http://localhost:8000, with hot reload on changes under `app/`. Postgres data and uploaded files persist across `docker compose down` via named volumes. Migrations run automatically before the server starts, including on a completely fresh volume; the worker waits for the API to be healthy, so it never starts against an unmigrated database. Redis is only reachable inside Compose.
+This starts five services: `web` (the Next.js frontend), `app` (the API), `worker`, `db` (Postgres) and `redis`. The web app is at http://localhost:3000 and the API at http://localhost:8000, with hot reload on changes under `backend/app/`. Postgres data and uploaded files persist across `docker compose down` via named volumes. Migrations run automatically before the server starts, including on a completely fresh volume; the worker waits for the API to be healthy, so it never starts against an unmigrated database. Redis is only reachable inside Compose.
 
 ### Without Docker
 
@@ -140,6 +158,7 @@ Requires `DATABASE_URL` to point at a reachable Postgres, and requires migration
 
 ```powershell
 docker compose up db
+cd backend
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements-dev.txt
@@ -160,6 +179,23 @@ Note the host is `localhost` (not `db` — that only resolves inside the Compose
 
 Interactive docs at http://localhost:8000/docs
 
+## Frontend
+
+The browser only ever talks to Next.js. Next.js calls the API server-side, over the Compose network, through one helper: `frontend/src/lib/api.ts`. That way the browser never learns where the API lives, the browser needs no CORS access to it, and (from Phase 8) the login token can sit in an httpOnly cookie that no script on the page can read. `API_URL` is a server-only setting; never rename it with a `NEXT_PUBLIC_` prefix, or it gets baked into the JavaScript sent to the browser.
+
+`GET http://localhost:3000/api/health` checks that whole path, browser → Next.js → API: `{"frontend": "ok", "api": "ok"}`, or `"api": "unreachable"` when the API is down. The page itself still renders without the API.
+
+**Develop the frontend outside Docker.** Compose's `web` service runs the production build, without hot reload: on Docker Desktop, file-change events from Windows don't reach the container, so Next.js never sees an edit (the Next.js docs recommend the same). With the rest of the stack running in Compose:
+
+```powershell
+cd frontend
+npm install
+Copy-Item .env.example .env.local   # API_URL=http://localhost:8000
+npm run dev                          # http://localhost:3000, hot reload
+```
+
+Stop the `web` container first (`docker compose stop web`) or `npm run dev` can't take port 3000. Run `npm run dev -- --port 3001` to keep both.
+
 ## Checks
 
 A `Makefile` defines these targets (requires `make`, e.g. `choco install make`); the underlying commands work just as well run directly if you don't have `make` installed:
@@ -168,7 +204,7 @@ A `Makefile` defines these targets (requires `make`, e.g. `choco install make`);
 |---|---|---|
 | `make up` | `docker compose up --build` | Docker |
 | `make test` | `docker compose run --rm app pytest` | Docker (starts Postgres and Redis itself) |
-| `make lint` | `ruff check .` + `ruff format --check .` | Local venv with `requirements-dev.txt` |
+| `make lint` | `ruff check .` + `ruff format --check .` in `backend/`; `npm run lint` + `npm run typecheck` in `frontend/` | A venv with `backend/requirements-dev.txt`; `npm install` in `frontend/` |
 
 `make test` runs the full suite inside a container wired to Postgres and Redis. Add `--cov` (`docker compose run --rm app pytest --cov`) for the coverage report.
 
@@ -184,20 +220,22 @@ Tests marked `integration` need Postgres and Redis. Compose doesn't publish Redi
 
 ### CI
 
-Every push to `main` and every pull request runs four GitHub Actions jobs:
+Every push to `main` and every pull request runs five GitHub Actions jobs:
 
 | Job | Fails when |
 |---|---|
-| `lint` | `ruff check .` finds a problem |
-| `format` | `ruff format --check .` would change a file |
-| `test` | any test fails, or coverage drops below **97%** (Postgres 16 and Redis 7 run as service containers, so the whole suite runs, integration tests included) |
-| `image` | the `runtime` or `dev` image doesn't build; the runtime image runs as root or contains pytest or ruff; or it fails to migrate an empty database and serve `/health` and `POST /auth/register` |
+| `lint` | `ruff check .` finds a problem in `backend/` |
+| `format` | `ruff format --check .` would change a file in `backend/` |
+| `test` | any backend test fails, or coverage drops below **97%** (Postgres 16 and Redis 7 run as service containers, so the whole suite runs, integration tests included) |
+| `frontend` | `npm run lint`, `npm run typecheck` or `npm run build` fails in `frontend/` |
+| `image` | the backend `runtime` or `dev` image, or the frontend image, doesn't build; the backend runtime image runs as root or contains pytest or ruff, or fails to migrate an empty database and serve `/health` and `POST /auth/register`; the frontend image runs as root, or `/api/health` through Next.js doesn't reach the API |
 
-**Coverage** counts branches as well as lines, and the threshold lives in `pyproject.toml` with two decimals (`fail_under = 97`, `precision = 2`). With whole numbers, 96.5% would round up and pass. Raise it as coverage grows, never lower it. The `test` job's summary page shows the coverage table for each run.
+**Coverage** counts branches as well as lines, and the threshold lives in `backend/pyproject.toml` with two decimals (`fail_under = 97`, `precision = 2`). With whole numbers, 96.5% would round up and pass. Raise it as coverage grows, never lower it. The `test` job's summary page shows the coverage table for each run.
 
 ### Responsiveness under upload load
 
 ```powershell
+cd backend
 python scripts/measure_latency.py --base-url http://localhost:8000
 ```
 
@@ -206,6 +244,7 @@ Times `GET /health` while idle and while 10 concurrent ~10 MB uploads run (5 rou
 ### Cache: cold vs warm reads
 
 ```powershell
+cd backend
 python scripts/measure_cache.py --base-url http://localhost:8000
 ```
 
@@ -213,7 +252,11 @@ Creates 25 text and 25 CSV documents (needs the worker running), then reads each
 
 ## Images
 
-The Dockerfile has two final targets. `runtime` is the default, so a plain `docker build .` produces the lean production image with no test or lint tooling in it. Compose builds `target: dev`, which adds `pytest`/`ruff` on top so `make test` can run inside the container. CI builds both on every pull request, so a broken Dockerfile fails the PR rather than the deploy.
+`backend/Dockerfile` has two final targets. `runtime` is the default, so a plain `docker build backend` produces the lean production image with no test or lint tooling in it. Compose builds `target: dev`, which adds `pytest`/`ruff` on top so `make test` can run inside the container.
+
+`frontend/Dockerfile` builds Next.js's standalone server: the compiled app and only the `node_modules` files it needs, with no source and no dev dependencies, running as the unprivileged `node` user.
+
+CI builds all three on every pull request, so a broken Dockerfile fails the PR rather than the deploy.
 
 ## Database migrations
 
@@ -223,4 +266,4 @@ New migration after changing a model:
 docker compose run --rm app alembic revision --autogenerate -m "describe the change"
 ```
 
-Review the generated file in `app/alembic/versions/` before applying — autogenerate doesn't always get it right. Then `docker compose up` (or `alembic upgrade head`) applies it.
+Review the generated file in `backend/app/alembic/versions/` before applying — autogenerate doesn't always get it right. Then `docker compose up` (or `alembic upgrade head`) applies it.

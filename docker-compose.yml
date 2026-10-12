@@ -28,15 +28,15 @@ services:
 
   app:
     build:
-      context: .
+      context: ./backend
       target: dev
     ports:
       - "8000:8000"
     env_file:
       - .env
     volumes:
-      - ./app:/app/app
-      - ./tests:/app/tests
+      - ./backend/app:/app/app
+      - ./backend/tests:/app/tests
       - uploads:/data/uploads
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     restart: unless-stopped
@@ -54,12 +54,12 @@ services:
 
   worker:
     build:
-      context: .
+      context: ./backend
       target: dev
     env_file:
       - .env
     volumes:
-      - ./app:/app/app
+      - ./backend/app:/app/app
       - uploads:/data/uploads
     # Same image as app, different process. The image's entrypoint runs
     # migrations; skipping it here means only one container ever migrates, and
@@ -78,6 +78,22 @@ services:
     # The image's healthcheck probes :8000/health, which only the API serves.
     healthcheck:
       disable: true
+
+  web:
+    # The production build. For frontend work run `npm run dev` on the host
+    # instead: hot reload doesn't survive Docker Desktop's file sharing.
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # Server-side only: the browser talks to Next.js, and Next.js calls the
+      # API over the Compose network.
+      API_URL: http://app:8000
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
 
 volumes:
   postgres_data:

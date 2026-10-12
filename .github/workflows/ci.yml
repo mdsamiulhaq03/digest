@@ -9,6 +9,9 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,6 +22,9 @@ jobs:
 
   format:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,8 +35,11 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     # The same images Compose runs. The tests create their own `digest_test`
-    # database and migrate it, and use Redis database 15 - see tests/database.py.
+    # database and migrate it, and use Redis database 15 - see backend/tests/database.py.
     services:
       postgres:
         image: postgres:16-alpine
@@ -101,9 +110,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build runtime image
-        run: docker build --target runtime -t digest:ci .
+        run: docker build --target runtime -t digest:ci backend
       - name: Build dev image
-        run: docker build --target dev -t digest:ci-dev .
+        run: docker build --target dev -t digest:ci-dev backend
       # `! cmd` never fails a step under `set -e`, so each check is an
       # explicit if/exit.
       - name: Runtime image runs as non-root, with no test or lint tooling
@@ -135,6 +144,45 @@ jobs:
             localhost:8000/auth/register -H "Content-Type: application/json" \
             -d '{"email": "ci@example.com", "password": "correct-horse-battery"}')
           if [ "$status" != "201" ]; then echo "register returned $status"; exit 1; fi
+      - name: Build frontend image
+        run: docker build -t digest-web:ci frontend
+      - name: Frontend image runs as non-root and reaches the API through Next.js
+        run: |
+          user=$(docker run --rm --entrypoint whoami digest-web:ci)
+          if [ "$user" != "node" ]; then echo "runs as $user"; exit 1; fi
+          # The API container from the previous step is still serving :8000.
+          docker run -d --name web --network host \
+            -e API_URL=http://localhost:8000 \
+            digest-web:ci
+          for _ in $(seq 1 30); do
+            curl -fs localhost:3000/api/health && break
+            sleep 1
+          done
+          body=$(curl -fs localhost:3000/api/health)
+          if [ "$body" != '{"frontend":"ok","api":"ok"}' ]; then
+            echo "health through Next.js returned: $body"; exit 1
+          fi
       - name: Container logs
         if: failure()
-        run: docker logs app
+        run: |
+          docker logs app || true
+          docker logs web || true
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      # Generates Next.js's route types first; plain `tsc` on a fresh checkout
+      # fails without them.
+      - run: npm run typecheck
+      - run: npm run build
