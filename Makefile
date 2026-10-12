@@ -7,5 +7,5 @@ test:
 	docker compose run --rm app pytest
 
 lint:
-	ruff check .
-	ruff format --check .
+	cd backend && ruff check . && ruff format --check .
+	cd frontend && npm run lint && npm run typecheck
