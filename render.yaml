@@ -1,0 +1,41 @@
+# Render Blueprint: the backend on Render's free tier.
+# Dashboard -> New -> Blueprint -> pick this repo. Render creates both
+# services below and asks for DATABASE_URL (the Neon URL, postgresql+psycopg://).
+# The frontend runs on Vercel with API_URL pointing at digest-api's URL.
+
+services:
+  # Job queue and document cache. Internal only: nothing outside Render's
+  # private network can reach it.
+  - type: keyvalue
+    name: digest-redis
+    region: ohio
+    plan: free
+    ipAllowList: []
+
+  # API and worker in one container. The free tier has no background workers
+  # and no shared disk, and the worker has to read the files the API saves,
+  # so both processes run side by side here.
+  - type: web
+    name: digest-api
+    runtime: docker
+    region: ohio # Neon's database is in AWS us-east-2 (Ohio)
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: 'sh -c "alembic upgrade head && (python -m app.worker &) && exec uvicorn app.main:app --host 0.0.0.0 --port $PORT"'
+    healthCheckPath: /health/ready
+    buildFilter:
+      paths:
+        - backend/**
+    envVars:
+      - key: DATABASE_URL
+        sync: false # asked for at setup: the Neon URL, never committed
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: digest-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEMO_ACCOUNTS
+        value: "true"
