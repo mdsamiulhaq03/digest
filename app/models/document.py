@@ -47,7 +47,7 @@ class Document(Base):
         ForeignKey("users.id", ondelete="CASCADE", name="fk_documents_owner_id_users"),
         nullable=False,
     )
-    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
     # For display only - never used to build a path on disk.
     original_filename: Mapped[str | None] = mapped_column(String(255))
