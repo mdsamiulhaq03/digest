@@ -53,16 +53,6 @@ export function formatDuration(fromIso: string, toIso: string): string {
   return `${Math.floor(seconds / 60)} min ${seconds % 60} s`;
 }
 
-/** What kind of document this is. An upload's title is already its filename,
- * so this names the type rather than repeating the name. */
-export function documentSource(document: Document): string {
-  if (document.size_bytes === null) {
-    return "Pasted text";
-  }
-  const kind = document.content_type === "text/csv" ? "CSV file" : "Text file";
-  return `${kind}, ${formatBytes(document.size_bytes)}`;
-}
-
 /** The digest's credit line: where this condensed version came from. */
 export function creditLine(document: Document): string {
   if (document.size_bytes === null) {

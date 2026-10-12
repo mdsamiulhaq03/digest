@@ -9,6 +9,9 @@ import { getCurrentUser } from "@/lib/auth";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
       <header className="band">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-4 py-4 sm:px-8">
           <Link href="/" className="cover-line text-4xl">
@@ -21,7 +24,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Suspense>
         </div>
       </header>
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-10 sm:px-8">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-10 outline-none sm:px-8"
+      >
         {children}
       </main>
       <footer className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-8">

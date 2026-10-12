@@ -10,10 +10,11 @@
   --rule: #c7d0cb;
   --leader: #87948d;
   --band: #0e5a4a;
-  --band-deep: #0a4639;
   --on-band: #f2f7f4;
   --on-band-muted: #b6d3c8;
   --viridian: #0e5a4a;
+  --action: #0e5a4a;
+  --action-deep: #0a4639;
   --live: #d9a21b;
   --on-live: #141a17;
   --fail: #a8322a;
@@ -30,10 +31,13 @@
     --rule: #2b3732;
     --leader: #5d6e66;
     --band: #0b3a30;
-    --band-deep: #072a22;
     --on-band: #e6f0ec;
     --on-band-muted: #9cc4b6;
     --viridian: #6cc4a8;
+    /* The band's deep green would have no edge on this ground, so actions
+       take a lighter fill (3:1 against the page, 4.9:1 for their label). */
+    --action: #1d7360;
+    --action-deep: #175e4f;
     --live: #e0ad2c;
     --on-live: #141a17;
     --fail: #f08a7e;
@@ -105,13 +109,6 @@ body {
     background: var(--band);
     color: var(--on-band);
   }
-  .band ::selection {
-    background: var(--on-band);
-    color: var(--band);
-  }
-  .band :focus-visible {
-    outline-color: var(--on-band);
-  }
 
   .btn {
     display: inline-flex;
@@ -120,7 +117,7 @@ body {
     gap: 0.5rem;
     min-height: 2.75rem;
     border-radius: 2px;
-    background: var(--band);
+    background: var(--action);
     color: var(--on-band);
     padding: 0.625rem 1.25rem;
     font-size: 0.9375rem;
@@ -128,7 +125,7 @@ body {
     transition: background-color 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
   }
   .btn:hover {
-    background: var(--band-deep);
+    background: var(--action-deep);
   }
   .btn:disabled {
     background: var(--rule);
@@ -194,7 +191,7 @@ body {
   .contents > li,
   .contents > div {
     display: flex;
-    align-items: baseline;
+    align-items: last baseline;
     gap: 0.5rem;
     padding: 0.3rem 0;
   }
@@ -314,6 +311,32 @@ body {
     animation: leader-set 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
     animation-delay: calc(300ms + var(--i, 0) * 120ms);
   }
+}
+
+/* Unlayered, like the global focus rule they override: inside the band a
+   viridian ring would vanish into the viridian. */
+.band ::selection {
+  background: var(--on-band);
+  color: var(--band);
+}
+.band :focus-visible {
+  outline-color: var(--on-band);
+}
+
+/* Hidden until a keyboard user reaches it; then it sits over the band. */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 10;
+  background: var(--on-band);
+  color: var(--band);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+}
+.skip-link:focus-visible {
+  top: 0.75rem;
+  outline-color: var(--on-band);
 }
 
 @keyframes leader-set {

@@ -14,16 +14,33 @@ const TAB_LABELS: Record<Tab, string> = { text: "Paste text", file: "Upload a fi
 
 export function NewDocumentForms() {
   const [tab, setTab] = useState<Tab>("text");
+  const tabs = Object.keys(TAB_LABELS) as Tab[];
+
+  // Arrow keys move between tabs, as the tab pattern expects.
+  function onKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") {
+      return;
+    }
+    const step = event.key === "ArrowRight" ? 1 : -1;
+    const next = tabs[(tabs.indexOf(tab) + step + tabs.length) % tabs.length];
+    setTab(next);
+    document.getElementById(`tab-${next}`)?.focus();
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div role="tablist" aria-label="How to add it" className="flex gap-8 border-b border-ink">
-        {(Object.keys(TAB_LABELS) as Tab[]).map((option) => (
+        {tabs.map((option) => (
           <button
             key={option}
+            id={`tab-${option}`}
             type="button"
             role="tab"
             aria-selected={tab === option}
+            aria-controls={`panel-${option}`}
+            tabIndex={tab === option ? 0 : -1}
             onClick={() => setTab(option)}
+            onKeyDown={onKeyDown}
             className={`cover-label -mb-px border-b-4 pb-2 text-lg transition-colors ${
               tab === option
                 ? "border-viridian text-ink"
@@ -34,7 +51,9 @@ export function NewDocumentForms() {
           </button>
         ))}
       </div>
-      {tab === "text" ? <PasteForm /> : <UploadForm />}
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+        {tab === "text" ? <PasteForm /> : <UploadForm />}
+      </div>
     </div>
   );
 }

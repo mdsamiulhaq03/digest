@@ -9,7 +9,8 @@ colors:
   rule: "#c7d0cb"
   leader: "#87948d"
   band: "#0e5a4a"
-  band-deep: "#0a4639"
+  action: "#0e5a4a"
+  action-deep: "#0a4639"
   on-band: "#f2f7f4"
   on-band-muted: "#b6d3c8"
   viridian: "#0e5a4a"
@@ -24,7 +25,8 @@ colors:
   rule-dark: "#2b3732"
   leader-dark: "#5d6e66"
   band-dark: "#0b3a30"
-  band-deep-dark: "#072a22"
+  action-dark: "#1d7360"
+  action-deep-dark: "#175e4f"
   on-band-dark: "#e6f0ec"
   on-band-muted-dark: "#9cc4b6"
   viridian-dark: "#6cc4a8"
@@ -98,13 +100,13 @@ components:
     textColor: "{colors.on-band}"
     padding: "16px 32px"
   button-primary:
-    backgroundColor: "{colors.band}"
+    backgroundColor: "{colors.action}"
     textColor: "{colors.on-band}"
     rounded: "{rounded.corner}"
     padding: "10px 20px"
     height: "44px"
   button-primary-hover:
-    backgroundColor: "{colors.band-deep}"
+    backgroundColor: "{colors.action-deep}"
     textColor: "{colors.on-band}"
   button-primary-disabled:
     backgroundColor: "{colors.rule}"
@@ -164,7 +166,7 @@ It refuses the SaaS stat-card grid and the status-pill dashboard. Accessibility 
 A single committed green house colour on a cool, slightly green-tinted neutral ramp, with two signal hues that each mean exactly one thing.
 
 ### Primary
-- **Viridian Band** (`band`): the masthead band across every signed-in page and the full-height cover panel on sign-in; also the primary button fill and the text-selection colour. Hover deepens to **Band Deep** (`band-deep`).
+- **Viridian Band** (`band`): the masthead band across every signed-in page and the full-height cover panel on sign-in; also the text-selection colour. Primary buttons use **Action** (`action`), the same green in light mode, deepening to `action-deep` on hover. In dark mode the band goes deeper but actions go lighter (`action-dark` #1d7360): the band green has no edge on the #0f1412 page, while #1d7360 holds 3:1 against it and 4.9:1 for its label.
 - **Viridian Ink** (`viridian`): the text-role viridian for links, the Ready state, focus rings, caret, the active new-document tab underline, top-word rank numbers, and the marked-word underlines. In light mode it equals the band hue; in dark mode it lifts to `viridian-dark` so it stays legible as text on the dark ground.
 - **On Band** (`on-band`) and **On Band Muted** (`on-band-muted`): text on the band; muted carries inactive nav links, the signed-in email, and the cover's credit line and leaders.
 
@@ -250,7 +252,7 @@ Square by intent: interactive controls (buttons, fields, the file-picker button)
 Solid, square, and calm.
 - **Shape:** near-square (2px corners), min height 2.75rem.
 - **Primary:** band fill with on-band text, 600 weight, 0.9375rem, padding 0.625rem 1.25rem. Used for the main action on a page (New document, Upload it again, Sign in).
-- **Hover / Focus:** fill deepens to band-deep over 160ms (cubic-bezier(0.2, 0.7, 0.2, 1)); focus is a 2px viridian outline offset 3px (on-band inside the band).
+- **Hover / Focus:** fill deepens to action-deep over 160ms (cubic-bezier(0.2, 0.7, 0.2, 1)); focus is a 2px viridian outline offset 3px (on-band inside the band).
 - **Disabled:** hairline fill, muted text, not-allowed cursor.
 - **Quiet:** transparent with a 1px ink outline, full width, label left and a muted secondary value right on the baseline; hover fills with surface. Used for the demo-account sign-in choices.
 - **Text actions:** links in viridian, 600, with a 1px underline at 0.22em offset that thickens to 2px on hover.
