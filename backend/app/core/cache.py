@@ -20,7 +20,8 @@ from app.core.config import get_settings
 
 # Bump when the cached response shape changes: every old entry then simply
 # misses after a deploy, instead of being served in the wrong shape.
-CACHE_VERSION = "v1"
+# v2: documents gained `status` and `job_id`.
+CACHE_VERSION = "v2"
 
 # A cache is only worth having if it is faster than the database it fronts. A
 # slow Redis must give up quickly and let Postgres answer, not stall the read.

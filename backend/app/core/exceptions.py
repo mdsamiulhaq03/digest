@@ -50,6 +50,12 @@ class InvalidCredentialsError(AuthenticationError):
         super().__init__("Invalid email or password")
 
 
+class DemoModeDisabledError(NotFoundError):
+    # 404, not 403: with demo mode off, the demo routes simply don't exist.
+    def __init__(self) -> None:
+        super().__init__("Not found")
+
+
 class PermissionDeniedError(AppError):
     status_code = 403
 

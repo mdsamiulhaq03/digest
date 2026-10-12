@@ -134,10 +134,10 @@ jobs:
             digest:ci
           # Poll with a deadline: the entrypoint migrates before uvicorn starts.
           for _ in $(seq 1 30); do
-            curl -fs localhost:8000/health && break
+            curl -fs localhost:8000/health/ready && break
             sleep 1
           done
-          curl -fs localhost:8000/health
+          curl -fs localhost:8000/health/ready
           # Registering writes to the users table, so this fails unless the
           # migrations really ran.
           status=$(curl -s -o /dev/null -w "%{http_code}" -X POST \

@@ -20,6 +20,7 @@ from app.core.db import Base
 if TYPE_CHECKING:
     from app.models.csv_insight import CsvInsight
     from app.models.insight import Insight
+    from app.models.job import Job
 
 
 class Document(Base):
@@ -73,3 +74,6 @@ class Document(Base):
     csv_insight: Mapped["CsvInsight | None"] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
+    # Uploads only; pasted text never has one. Read-only from this side: jobs
+    # are created and changed through JobRepository, never via a document.
+    job: Mapped["Job | None"] = relationship(viewonly=True)

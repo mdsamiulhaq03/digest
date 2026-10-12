@@ -17,7 +17,7 @@ RUN chmod +x entrypoint.sh && chown -R appuser:appuser /app
 ENV PATH=/home/appuser/.local/bin:$PATH
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')" || exit 1
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 

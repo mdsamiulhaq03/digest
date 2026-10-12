@@ -30,7 +30,8 @@ Each side has its own dependencies and tooling (`backend/requirements*.txt` and 
 - `GET /documents` - list **your** documents, newest first
 - `GET /documents/{id}` - fetch one of **your** documents
 - `GET /admin/users` - list every account (admin only)
-- `GET /health` - health check
+- `GET /health/live` - liveness: the process is up (checks nothing else; `/health` is an alias)
+- `GET /health/ready` - readiness: 200 when Postgres is reachable, 503 when not (Redis is reported, never fatal)
 
 Everything under `/documents`, `/jobs` and `/admin` needs an `Authorization: Bearer <token>` header.
 
@@ -183,7 +184,9 @@ Interactive docs at http://localhost:8000/docs
 
 The browser only ever talks to Next.js. Next.js calls the API server-side, over the Compose network, through one helper: `frontend/src/lib/api.ts`. That way the browser never learns where the API lives, the browser needs no CORS access to it, and (from Phase 8) the login token can sit in an httpOnly cookie that no script on the page can read. `API_URL` is a server-only setting; never rename it with a `NEXT_PUBLIC_` prefix, or it gets baked into the JavaScript sent to the browser.
 
-`GET http://localhost:3000/api/health` checks that whole path, browser → Next.js → API: `{"frontend": "ok", "api": "ok"}`, or `"api": "unreachable"` when the API is down. The page itself still renders without the API.
+`GET http://localhost:3000/api/health` checks that whole path, browser → Next.js → API, using the API's readiness check: `{"frontend": "ok", "api": "ok"}`; `"api": "not_ready"` when the API answers but can't reach Postgres; `"api": "unreachable"` when it doesn't answer at all. The page itself still renders without the API.
+
+**CORS** is off by default for the same reason: no browser calls the API directly. If some other browser client ever needs to, list its exact origins in `CORS_ORIGINS` (comma-separated, e.g. `https://app.example.com` - no path or trailing slash). A `*` stops the API from starting, rather than letting any website's scripts read API responses in their visitors' browsers. Allowed origins can send `GET`/`POST` with a bearer token, never cookies.
 
 **Develop the frontend outside Docker.** Compose's `web` service runs the production build, without hot reload: on Docker Desktop, file-change events from Windows don't reach the container, so Next.js never sees an edit (the Next.js docs recommend the same). With the rest of the stack running in Compose:
 
