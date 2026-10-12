@@ -167,12 +167,33 @@ A `Makefile` defines these targets (requires `make`, e.g. `choco install make`);
 | Target | What it runs | Needs |
 |---|---|---|
 | `make up` | `docker compose up --build` | Docker |
-| `make test` | `docker compose run --rm app pytest` | Docker (spins up Postgres itself) |
+| `make test` | `docker compose run --rm app pytest` | Docker (starts Postgres and Redis itself) |
 | `make lint` | `ruff check .` + `ruff format --check .` | Local venv with `requirements-dev.txt` |
 
-`make test` runs the full suite (including tests marked `integration`, which need a real database) inside a container wired to Postgres. Integration tests truncate their tables before and after each test, so they never leave rows behind.
+`make test` runs the full suite inside a container wired to Postgres and Redis. Add `--cov` (`docker compose run --rm app pytest --cov`) for the coverage report.
 
-Outside Docker, `pytest -m "not integration"` runs only the tests that don't touch the database — that's also what CI runs, since Postgres isn't wired into CI yet (that's Phase 7). Tests never need Redis: they swap the queue for an in-memory recorder and the cache for a fresh in-memory store per test, and uploads go to a temporary folder.
+**Tests never touch your development data.**
+
+- **Postgres:** the suite uses its own database on the same server, named after yours with `_test` appended (`digest_test`). It is dropped, recreated and migrated with `alembic upgrade head` at the start of every run, so the schema always comes from the migrations and a broken migration fails the run. Integration tests truncate their tables before and after each test.
+- **Redis:** tests use logical database 15 (the app uses 0), so the development worker never takes a test's job off the queue.
+- **Everything else:** uploads go to a temporary folder. Most tests swap the queue for an in-memory recorder and the cache for a fresh in-memory store; the tests marked `integration` use the real Postgres and Redis.
+
+Tests marked `integration` need Postgres and Redis. Compose doesn't publish Redis's port, so outside Docker, `pytest -m "not integration"` runs just the tests that need neither.
+
+**Test order is random.** `pytest-randomly` shuffles the tests on every run, so a test that only passes after another one fails early. The run's header prints the seed (`Using --randomly-seed=12905295`); to replay a failure in the same order, run `pytest -p randomly --randomly-seed=12905295`. To run in file order while debugging, use `-p no:randomly`.
+
+### CI
+
+Every push to `main` and every pull request runs four GitHub Actions jobs:
+
+| Job | Fails when |
+|---|---|
+| `lint` | `ruff check .` finds a problem |
+| `format` | `ruff format --check .` would change a file |
+| `test` | any test fails, or coverage drops below **97%** (Postgres 16 and Redis 7 run as service containers, so the whole suite runs, integration tests included) |
+| `image` | the `runtime` or `dev` image doesn't build; the runtime image runs as root or contains pytest or ruff; or it fails to migrate an empty database and serve `/health` and `POST /auth/register` |
+
+**Coverage** counts branches as well as lines, and the threshold lives in `pyproject.toml` with two decimals (`fail_under = 97`, `precision = 2`). With whole numbers, 96.5% would round up and pass. Raise it as coverage grows, never lower it. The `test` job's summary page shows the coverage table for each run.
 
 ### Responsiveness under upload load
 
@@ -192,7 +213,7 @@ Creates 25 text and 25 CSV documents (needs the worker running), then reads each
 
 ## Images
 
-The Dockerfile has two final targets. `runtime` is the default, so a plain `docker build .` produces the lean production image with no test or lint tooling in it. Compose builds `target: dev`, which adds `pytest`/`ruff` on top so `make test` can run inside the container.
+The Dockerfile has two final targets. `runtime` is the default, so a plain `docker build .` produces the lean production image with no test or lint tooling in it. Compose builds `target: dev`, which adds `pytest`/`ruff` on top so `make test` can run inside the container. CI builds both on every pull request, so a broken Dockerfile fails the PR rather than the deploy.
 
 ## Database migrations
 
