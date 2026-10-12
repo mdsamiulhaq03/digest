@@ -36,7 +36,7 @@ export function AuthForm({
         error={state?.fieldErrors.password}
       />
       {state?.message && (
-        <p role="alert" className="text-correction">
+        <p role="alert" className="notice notice-error">
           {state.message}
         </p>
       )}
@@ -66,7 +66,7 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="font-medium">{label}</span>
+      <span className="font-semibold">{label}</span>
       <input
         name={name}
         type={type}
@@ -76,8 +76,8 @@ function Field({
         aria-invalid={error ? true : undefined}
         className="field"
       />
-      {hint && !error && <span className="text-sm text-graphite">{hint}</span>}
-      {error && <span className="text-sm text-correction">{error}</span>}
+      {hint && !error && <span className="text-sm text-muted">{hint}</span>}
+      {error && <span className="text-sm font-medium text-fail">{error}</span>}
     </label>
   );
 }

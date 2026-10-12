@@ -5,7 +5,7 @@ const WORD_SPLIT = /([A-Za-z']+)/;
 // Past this, one element per word costs more than the marks are worth.
 const MAX_HIGHLIGHT_CHARS = 200_000;
 
-/** The marker fades with rank, so the most used word is the boldest stroke. */
+/** The underline fades with rank, so the most used word is the strongest. */
 export function rankStyle(rank: number): React.CSSProperties {
   return { "--rank": rank } as React.CSSProperties;
 }
@@ -23,7 +23,7 @@ export function HighlightedText({ text, words }: { text: string; words: string[]
         return rank === undefined ? (
           part
         ) : (
-          <mark key={index} className="mark" style={rankStyle(rank)}>
+          <mark key={index} className="mark-word bg-transparent text-inherit" style={rankStyle(rank)}>
             {part}
           </mark>
         );

@@ -16,7 +16,7 @@ export function NewDocumentForms() {
   const [tab, setTab] = useState<Tab>("text");
   return (
     <div className="flex flex-col gap-6">
-      <div role="tablist" className="flex gap-6 border-b border-rule">
+      <div role="tablist" aria-label="How to add it" className="flex gap-8 border-b border-ink">
         {(Object.keys(TAB_LABELS) as Tab[]).map((option) => (
           <button
             key={option}
@@ -24,8 +24,10 @@ export function NewDocumentForms() {
             role="tab"
             aria-selected={tab === option}
             onClick={() => setTab(option)}
-            className={`-mb-px border-b-[3px] pb-2.5 font-semibold ${
-              tab === option ? "border-ink" : "border-transparent text-graphite hover:text-ink"
+            className={`cover-label -mb-px border-b-4 pb-2 text-lg transition-colors ${
+              tab === option
+                ? "border-viridian text-ink"
+                : "border-transparent text-muted hover:text-ink"
             }`}
           >
             {TAB_LABELS[option]}
@@ -42,7 +44,7 @@ function PasteForm() {
   return (
     <form action={action} className="flex flex-col gap-5">
       <label className="flex flex-col gap-1.5">
-        <span className="font-medium">Title</span>
+        <span className="font-semibold">Title</span>
         <input
           name="title"
           required
@@ -54,7 +56,7 @@ function PasteForm() {
         <FieldError message={state?.fieldErrors.title} />
       </label>
       <label className="flex flex-col gap-1.5">
-        <span className="font-medium">Text</span>
+        <span className="font-semibold">Text</span>
         <textarea
           name="text"
           required
@@ -75,8 +77,8 @@ function UploadForm() {
   const [tooLarge, setTooLarge] = useState(false);
   return (
     <form action={action} className="flex flex-col gap-5">
-      <label className="flex flex-col gap-3 rounded-md border border-dashed border-rule bg-sheet px-5 py-8 hover:border-graphite">
-        <span className="font-medium">Choose a file</span>
+      <label className="flex flex-col gap-3 border-2 border-dashed border-rule bg-surface px-6 py-10 transition-colors hover:border-viridian">
+        <span className="cover-line text-3xl">Choose a file</span>
         <input
           name="file"
           type="file"
@@ -87,9 +89,9 @@ function UploadForm() {
             const file = event.target.files?.[0];
             setTooLarge(file !== undefined && file.size > MAX_UPLOAD_BYTES);
           }}
-          className="text-sm text-graphite file:mr-4 file:cursor-pointer file:rounded-md file:border file:border-rule file:bg-paper file:px-3 file:py-2 file:font-semibold file:text-ink"
+          className="text-sm text-muted file:mr-4 file:min-h-11 file:cursor-pointer file:rounded-[2px] file:border file:border-ink file:bg-transparent file:px-4 file:py-2 file:font-semibold file:text-ink hover:file:bg-ground"
         />
-        <span className="text-sm text-graphite">
+        <span className="text-sm text-muted">
           A .txt or .csv file, up to 10 MB, UTF-8 encoded.
         </span>
         <FieldError
@@ -115,7 +117,7 @@ function FormFooter({
   return (
     <>
       {state?.message && (
-        <p role="alert" className="text-correction">
+        <p role="alert" className="notice notice-error">
           {state.message}
         </p>
       )}
@@ -127,5 +129,5 @@ function FormFooter({
 }
 
 function FieldError({ message }: { message?: string }) {
-  return message ? <span className="text-sm text-correction">{message}</span> : null;
+  return message ? <span className="text-sm font-medium text-fail">{message}</span> : null;
 }

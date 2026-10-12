@@ -9,7 +9,7 @@ graphify-out
 .env
 .env.*
 !.env.example
-
+.impeccable/
 # coverage
 .coverage
 htmlcov/

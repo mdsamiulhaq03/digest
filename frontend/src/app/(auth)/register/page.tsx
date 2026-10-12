@@ -6,15 +6,15 @@ import { AuthForm } from "../auth-form";
 export default function RegisterPage() {
   return (
     <>
-      <h1 className="text-3xl font-extrabold tracking-tight">Create an account</h1>
+      <h1 className="cover-line text-5xl">Create an account</h1>
       <AuthForm
         action={register}
         submitLabel="Create account"
         passwordHint="At least 8 characters."
       />
-      <p className="text-graphite">
+      <p className="text-muted">
         Already have one?{" "}
-        <Link href="/login" className="link text-ink">
+        <Link href="/login" className="link">
           Log in
         </Link>
       </p>

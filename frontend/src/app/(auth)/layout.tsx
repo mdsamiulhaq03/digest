@@ -1,13 +1,9 @@
+import { Contents } from "@/components/contents";
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid flex-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-      <section className="flex flex-col justify-between gap-10 border-b border-rule bg-sheet px-4 py-8 sm:px-10 lg:border-r lg:border-b-0 lg:px-16 lg:py-14">
-        <p className="text-xl font-extrabold tracking-tight">Digest</p>
-        <Specimen />
-        <p className="hidden text-sm text-graphite lg:block">
-          Works with pasted text, .txt files and .csv files.
-        </p>
-      </section>
+    <div className="grid flex-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+      <Cover />
       <main className="flex flex-col justify-center px-4 py-12 sm:px-10 lg:px-16">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6">{children}</div>
       </main>
@@ -15,26 +11,31 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   );
 }
 
-/** A sample of what Digest does: the paragraph's own most used word, marked. */
-function Specimen() {
+/** The digest's cover: its contents are exactly what Digest does to a
+ * document. The leaders set across once, on arrival. */
+function Cover() {
   return (
-    <figure className="flex max-w-xl flex-col gap-5">
-      <blockquote className="font-serif text-2xl leading-snug sm:text-4xl sm:leading-[1.2]">
-        Every piece of writing leans on a few <Mark i={0}>words</Mark> more than the rest.
-        Paste or upload yours, and Digest counts its <Mark i={1}>words</Mark>, sentences and
-        paragraphs, then marks the <Mark i={2}>words</Mark> that keep coming back.
-      </blockquote>
-      <figcaption className="text-graphite">
-        Here, that&apos;s &ldquo;words&rdquo;, used three times.
-      </figcaption>
-    </figure>
-  );
-}
-
-function Mark({ i, children }: { i: number; children: React.ReactNode }) {
-  return (
-    <span className="mark mark-draw" style={{ "--i": i } as React.CSSProperties}>
-      {children}
-    </span>
+    <section className="band flex flex-col justify-between gap-10 px-4 py-8 sm:px-10 lg:px-16 lg:py-14">
+      <p className="cover-line text-[clamp(4.5rem,11vw,9rem)] leading-[0.8]">Digest</p>
+      <div className="flex max-w-lg flex-col gap-4">
+        <p className="cover-label border-t-[3px] border-on-band pt-3 text-base">
+          What it makes of a document
+        </p>
+        <Contents
+          animated
+          className="text-lg [--leader:var(--on-band-muted)]"
+          rows={[
+            { label: "Words, sentences, paragraphs", figure: "counted" },
+            { label: "The ten words it leans on", figure: "ranked" },
+            { label: "Time it takes to read", figure: "estimated" },
+            { label: "CSV columns, types, min and max", figure: "profiled" },
+            { label: "Every upload, queue to finish", figure: "tracked" },
+          ]}
+        />
+      </div>
+      <p className="credit text-on-band-muted">
+        Works with pasted text, .txt files and .csv files up to 10 MB.
+      </p>
+    </section>
   );
 }

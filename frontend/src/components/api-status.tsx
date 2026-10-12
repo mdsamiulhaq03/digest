@@ -8,10 +8,8 @@ const LABELS: Record<ApiStatus, string> = {
 
 export async function ApiStatusLine() {
   const status = await getApiStatus();
-  const dot = status === "ok" ? "bg-settled" : "bg-correction";
   return (
-    <p className="inline-flex items-center gap-2">
-      <span aria-hidden className={`size-1.5 rounded-full ${dot}`} />
+    <p className={`state ${status === "ok" ? "state-ready" : "state-failed"}`}>
       {LABELS[status]}
     </p>
   );

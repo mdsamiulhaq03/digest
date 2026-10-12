@@ -1,20 +1,20 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { documentSource, formatDateTime } from "@/components/format";
+import { creditLine, formatDateTime } from "@/components/format";
 import { StatusBadge } from "@/components/status-badge";
 import { type Document, listDocuments } from "@/lib/documents";
 
 export default function DocumentsPage() {
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="text-4xl font-extrabold tracking-tight">Your documents</h1>
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <h1 className="cover-line text-5xl sm:text-6xl">Your documents</h1>
         <Link href="/documents/new" className="btn">
           New document
         </Link>
       </div>
-      <Suspense fallback={<p className="text-graphite">Loading your documents…</p>}>
+      <Suspense fallback={<p className="text-muted">Loading your documents…</p>}>
         <DocumentList />
       </Suspense>
     </>
@@ -25,24 +25,24 @@ async function DocumentList() {
   const documents = await listDocuments();
   if (documents.length === 0) {
     return (
-      <div className="flex flex-col items-start gap-4 rounded-md border border-dashed border-rule bg-sheet px-6 py-14 sm:px-10">
-        <p className="max-w-[34ch] font-serif text-2xl leading-snug">
-          Paste some text or upload a file, and Digest will mark the{" "}
-          <span className="mark">words</span> it leans on most.
+      <section className="section-rule flex max-w-2xl flex-col items-start gap-5 pt-8">
+        <p className="font-serif text-3xl leading-snug">
+          Nothing condensed yet. Paste some text or upload a file, and Digest will count it,
+          rank the words it leans on, and show how it got there.
         </p>
-        <p className="text-graphite">Plain text and CSV files up to 10 MB both work.</p>
+        <p className="text-muted">Pasted text, .txt and .csv files up to 10 MB all work.</p>
         <Link href="/documents/new" className="btn">
           Add your first document
         </Link>
-      </div>
+      </section>
     );
   }
   return (
-    <section aria-labelledby="count" className="flex flex-col gap-3">
-      <p id="count" className="text-sm text-graphite">
+    <section aria-labelledby="count" className="section-rule flex flex-col">
+      <h2 id="count" className="cover-label pb-2 text-sm text-muted">
         {documents.length} {documents.length === 1 ? "document" : "documents"}, newest first
-      </p>
-      <ul className="divide-y divide-rule overflow-hidden rounded-md border border-rule bg-sheet">
+      </h2>
+      <ul className="border-t border-ink">
         {documents.map((document) => (
           <DocumentRow key={document.id} document={document} />
         ))}
@@ -51,21 +51,30 @@ async function DocumentList() {
   );
 }
 
+/** Every entry carries the same furniture in the same places: title, leaders,
+ * state; then the credit line and the date beneath. */
 function DocumentRow({ document }: { document: Document }) {
   return (
-    <li>
+    <li className="border-b border-rule">
       <Link
         href={`/documents/${document.id}`}
-        className="group flex items-center justify-between gap-6 px-5 py-4 focus-visible:-outline-offset-2"
+        className="group flex flex-col gap-1 py-4 transition-colors hover:bg-surface focus-visible:-outline-offset-2 sm:px-3"
       >
-        <div className="min-w-0">
-          <p className="truncate text-lg font-semibold group-hover:underline">{document.title}</p>
-          <p className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-graphite">
-            <span>{documentSource(document)}</span>
-            <time dateTime={document.created_at}>{formatDateTime(document.created_at)}</time>
-          </p>
-        </div>
-        <StatusBadge status={document.status} />
+        <span className="flex gap-3 [align-items:last_baseline]">
+          <span className="min-w-0 text-lg font-semibold wrap-break-word group-hover:underline group-hover:underline-offset-4">
+            {document.title}
+          </span>
+          <span aria-hidden className="min-w-8 flex-1 -translate-y-1 border-b-2 border-dotted border-[var(--leader)]" />
+          <span>
+            <StatusBadge status={document.status} />
+          </span>
+        </span>
+        <span className="flex flex-wrap gap-x-4 text-[0.9375rem]">
+          <span className="credit">{creditLine(document)}</span>
+          <time dateTime={document.created_at} className="text-muted">
+            {formatDateTime(document.created_at)}
+          </time>
+        </span>
       </Link>
     </li>
   );

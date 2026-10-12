@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { formatDate } from "@/components/format";
 import { authedJson, getCurrentUser } from "@/lib/auth";
 
 type Account = {
@@ -14,8 +15,8 @@ type Account = {
 export default function AdminPage() {
   return (
     <>
-      <h1 className="text-4xl font-extrabold tracking-tight">All accounts</h1>
-      <Suspense fallback={<p className="text-graphite">Loading accounts…</p>}>
+      <h1 className="cover-line text-5xl sm:text-6xl">All accounts</h1>
+      <Suspense fallback={<p className="text-muted">Loading accounts…</p>}>
         <Accounts />
       </Suspense>
     </>
@@ -34,38 +35,34 @@ async function Accounts() {
   );
   return (
     <section aria-labelledby="account-count" className="flex flex-col gap-3">
-      <p id="account-count" className="text-sm text-graphite">
+      <h2 id="account-count" className="cover-label text-sm text-muted">
         {total} {total === 1 ? "account" : "accounts"}
-      </p>
-      <div className="overflow-x-auto rounded-md border border-rule bg-sheet">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-rule text-graphite">
+      </h2>
+      <div className="overflow-x-auto">
+        <table className="data-table">
+          <thead>
             <tr>
               {["Email", "Role", "Status", "Joined"].map((heading) => (
-                <th key={heading} scope="col" className="px-4 py-3 font-medium">
+                <th key={heading} scope="col">
                   {heading}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-rule">
+          <tbody>
             {users.map((account) => (
               <tr key={account.id}>
-                <th scope="row" className="px-4 py-3 font-semibold">
+                <th scope="row" className="font-semibold">
                   {account.email}
                 </th>
-                <td className="px-4 py-3 capitalize">{account.role}</td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      aria-hidden
-                      className={`size-2 rounded-full ${account.is_active ? "bg-settled" : "bg-rule"}`}
-                    />
+                <td className="capitalize">{account.role}</td>
+                <td>
+                  <span className={`state ${account.is_active ? "state-ready" : "text-muted"}`}>
                     {account.is_active ? "Active" : "Disabled"}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-graphite">
-                  {new Date(account.created_at).toLocaleDateString("en-GB")}
+                <td className="text-muted">
+                  <time dateTime={account.created_at}>{formatDate(account.created_at)}</time>
                 </td>
               </tr>
             ))}

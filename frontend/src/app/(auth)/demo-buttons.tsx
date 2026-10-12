@@ -10,15 +10,15 @@ export async function DemoButtons() {
     return null;
   }
   return (
-    <section aria-labelledby="demo" className="flex flex-col gap-3 border-t border-rule pt-6">
-      <h2 id="demo" className="text-graphite">
+    <section aria-labelledby="demo" className="section-rule mt-2 flex flex-col gap-3">
+      <h2 id="demo" className="font-medium">
         Just looking around? Use a demo account.
       </h2>
       {accounts.map((account) => (
         <form key={account.role} action={demoLogin.bind(null, account.role)}>
-          <button type="submit" className="btn-outline">
+          <button type="submit" className="btn-quiet">
             {LABELS[account.role]}
-            <span className="text-sm font-normal text-graphite">{account.email}</span>
+            <span className="text-sm font-normal text-muted">{account.email}</span>
           </button>
         </form>
       ))}

@@ -1,22 +1,19 @@
-import type { DocumentStatus } from "@/lib/documents";
+import type { DocumentStatus, JobState } from "@/lib/documents";
 
 const LABELS: Record<DocumentStatus, string> = {
   ready: "Ready",
-  processing: "Analysing",
+  processing: "In progress",
   failed: "Failed",
 };
 
-const DOTS: Record<DocumentStatus, string> = {
-  ready: "bg-settled",
-  processing: "bg-graphite pulse-dot",
-  failed: "bg-correction",
-};
-
-export function StatusBadge({ status }: { status: DocumentStatus }) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-2 text-sm font-medium">
-      <span aria-hidden className={`size-2 rounded-full ${DOTS[status]}`} />
-      {LABELS[status]}
-    </span>
-  );
+/** With the job's state at hand, a processing document says exactly what is
+ * happening to it; without it (the list), it says only that it isn't done. */
+export function StatusBadge({ status, jobState }: { status: DocumentStatus; jobState?: JobState }) {
+  let label = LABELS[status];
+  if (status === "processing" && jobState === "queued") {
+    label = "In line";
+  } else if (status === "processing" && jobState === "running") {
+    label = "Analysing";
+  }
+  return <span className={`state state-${status}`}>{label}</span>;
 }

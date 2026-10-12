@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
-import { Newsreader, Schibsted_Grotesk } from "next/font/google";
+import { Archivo, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 
-const grotesk = Schibsted_Grotesk({
-  variable: "--font-grotesk",
+// One family at two widths: condensed capitals for cover lines, normal width
+// for the interface. The width axis has to be asked for explicitly.
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
+  axes: ["wdth"],
 });
 
-// Document text is set in a reading serif; everything around it in the grotesk.
-const newsreader = Newsreader({
-  variable: "--font-newsreader",
+// The user's own text is set as a book page. No optical-size axis: the serif
+// only runs at reading sizes, and the axis more than doubled each file.
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
   subsets: ["latin"],
   style: ["normal", "italic"],
 });
@@ -23,7 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${grotesk.variable} ${newsreader.variable} h-full antialiased`}
+      className={`${archivo.variable} ${sourceSerif.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">{children}</body>
     </html>

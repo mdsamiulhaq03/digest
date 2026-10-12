@@ -1,184 +1,339 @@
 @import "tailwindcss";
 
-/* Proof paper, navy ink and one highlighter. The highlighter is the only loud
-   thing on any page: it marks the words a document leans on most. */
+/* The Pocket Digest: a viridian cover band, a cool page, near-black ink.
+   Ochre means one thing only, "still happening", and red means "failed". */
 :root {
-  --paper: #eef0f2;
-  --sheet: #ffffff;
-  --ink: #1d2433;
-  --graphite: #5b6475;
-  --rule: #d3d8df;
-  --marker: #f5e15a;
-  --marker-ink: currentColor;
-  --marker-height: 68%;
-  --correction: #b8322b;
-  --correction-wash: #f8e6e4;
-  --settled: #2c7351;
+  --ground: #f5f7f5;
+  --surface: #ffffff;
+  --ink: #141a17;
+  --muted: #4b5852;
+  --rule: #c7d0cb;
+  --leader: #87948d;
+  --band: #0e5a4a;
+  --band-deep: #0a4639;
+  --on-band: #f2f7f4;
+  --on-band-muted: #b6d3c8;
+  --viridian: #0e5a4a;
+  --live: #d9a21b;
+  --on-live: #141a17;
+  --fail: #a8322a;
+  --fail-wash: #f7e4e1;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #151920;
-    --sheet: #1d222b;
-    --ink: #e5e8ed;
-    --graphite: #9aa3b2;
-    --rule: #2f3643;
-    --marker: #e3cf4c;
-    /* On a dark page the stroke takes the full line, so its dark text never
-       spills onto the background. */
-    --marker-ink: #1d2433;
-    --marker-height: 100%;
-    --correction: #f0857b;
-    --correction-wash: #3a1f1f;
-    --settled: #72c69a;
-  }
-
-  /* Dark text on a faded stroke would sink into the page, so no rank fade. */
-  .mark {
-    --stroke: var(--marker);
+    --ground: #0f1412;
+    --surface: #161d1a;
+    --ink: #e6ece8;
+    --muted: #9fb0a8;
+    --rule: #2b3732;
+    --leader: #5d6e66;
+    --band: #0b3a30;
+    --band-deep: #072a22;
+    --on-band: #e6f0ec;
+    --on-band-muted: #9cc4b6;
+    --viridian: #6cc4a8;
+    --live: #e0ad2c;
+    --on-live: #141a17;
+    --fail: #f08a7e;
+    --fail-wash: #3a1d1a;
+    color-scheme: dark;
   }
 }
 
 @theme inline {
-  --color-paper: var(--paper);
-  --color-sheet: var(--sheet);
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
   --color-ink: var(--ink);
-  --color-graphite: var(--graphite);
+  --color-muted: var(--muted);
   --color-rule: var(--rule);
-  --color-marker: var(--marker);
-  --color-correction: var(--correction);
-  --color-correction-wash: var(--correction-wash);
-  --color-settled: var(--settled);
-  --font-sans: var(--font-grotesk);
-  --font-serif: var(--font-newsreader);
+  --color-band: var(--band);
+  --color-on-band: var(--on-band);
+  --color-on-band-muted: var(--on-band-muted);
+  --color-viridian: var(--viridian);
+  --color-live: var(--live);
+  --color-fail: var(--fail);
+  --color-fail-wash: var(--fail-wash);
+  --font-sans: var(--font-archivo);
+  --font-serif: var(--font-source-serif);
 }
 
 body {
-  background: var(--paper);
+  background: var(--ground);
   color: var(--ink);
-  font-family: var(--font-grotesk), system-ui, sans-serif;
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  caret-color: var(--viridian);
+  scrollbar-color: var(--leader) var(--ground);
+}
+
+::selection {
+  background: var(--band);
+  color: var(--on-band);
 }
 
 :focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--viridian);
   outline-offset: 3px;
-  border-radius: 2px;
 }
 
 @layer components {
+  /* Cover lines: Archivo pulled to its condensed width, set in capitals. */
+  .cover-line {
+    font-variation-settings: "wdth" 72;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    line-height: 0.95;
+    text-wrap: balance;
+  }
+  .cover-label {
+    font-variation-settings: "wdth" 72;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  /* "Condensed from …": the digest's credit line under every title. */
+  .credit {
+    font-family: var(--font-source-serif), Georgia, serif;
+    font-style: italic;
+    color: var(--muted);
+  }
+
+  .band {
+    background: var(--band);
+    color: var(--on-band);
+  }
+  .band ::selection {
+    background: var(--on-band);
+    color: var(--band);
+  }
+  .band :focus-visible {
+    outline-color: var(--on-band);
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border-radius: 0.375rem;
-    background: var(--ink);
-    color: var(--paper);
-    padding: 0.625rem 1.125rem;
+    min-height: 2.75rem;
+    border-radius: 2px;
+    background: var(--band);
+    color: var(--on-band);
+    padding: 0.625rem 1.25rem;
     font-size: 0.9375rem;
     font-weight: 600;
-    transition: opacity 120ms;
+    transition: background-color 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
   }
   .btn:hover {
-    opacity: 0.88;
+    background: var(--band-deep);
   }
   .btn:disabled {
-    opacity: 0.5;
+    background: var(--rule);
+    color: var(--muted);
     cursor: not-allowed;
   }
 
-  .btn-outline {
+  .btn-quiet {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
     width: 100%;
-    border: 1px solid var(--rule);
-    border-radius: 0.375rem;
-    background: var(--sheet);
-    padding: 0.75rem 1rem;
+    min-height: 2.75rem;
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    background: transparent;
+    padding: 0.625rem 1rem;
     text-align: left;
     font-weight: 600;
+    transition: background-color 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
   }
-  .btn-outline:hover {
-    border-color: var(--graphite);
+  .btn-quiet:hover {
+    background: var(--surface);
   }
 
   .field {
     width: 100%;
     border: 1px solid var(--rule);
-    border-radius: 0.375rem;
-    background: var(--sheet);
+    border-bottom: 2px solid var(--ink);
+    border-radius: 2px;
+    background: var(--surface);
+    color: var(--ink);
     padding: 0.625rem 0.75rem;
     font-size: 1rem;
+    transition: border-color 160ms;
   }
   .field:hover {
-    border-color: var(--graphite);
+    border-color: var(--leader);
+    border-bottom-color: var(--ink);
   }
   .field:focus-visible {
     outline-offset: 0;
-    border-color: var(--ink);
+    border-color: var(--viridian);
   }
   .field[aria-invalid="true"] {
-    border-color: var(--correction);
+    border-color: var(--fail);
   }
 
   .link {
+    color: var(--viridian);
+    font-weight: 600;
     text-decoration: underline;
-    text-decoration-color: var(--graphite);
-    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
   }
   .link:hover {
-    text-decoration-color: var(--ink);
+    text-decoration-thickness: 2px;
   }
 
-  /* A highlighter stroke: lower two-thirds of the line, slightly ragged ends. */
-  .mark {
-    /* Rank 0 is full strength; each rank after it is a lighter press. */
-    --stroke: color-mix(in oklab, var(--marker) calc(100% - var(--rank, 0) * 7%), transparent);
-    background-color: transparent;
-    background-image: linear-gradient(var(--stroke), var(--stroke));
-    color: var(--marker-ink);
-    background-repeat: no-repeat;
-    background-size: 100% var(--marker-height);
-    background-position: 0 75%;
-    border-radius: 0.15em 0.4em 0.2em 0.35em;
-    padding: 0 0.1em;
-    margin: 0 -0.1em;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
+  /* The signature: a contents line. Label, dot leaders, then a figure on a
+     right-aligned tabular column. */
+  .contents > li,
+  .contents > div {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.3rem 0;
+  }
+  .contents .leader {
+    flex: 1;
+    min-width: 1.5rem;
+    border-bottom: 2px dotted var(--leader);
+    transform: translateY(-0.3em);
+  }
+  .contents .figure {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+  /* Only the step still happening gets the ochre. */
+  .contents .is-live .figure {
+    background: var(--live);
+    color: var(--on-live);
+    padding: 0 0.375rem;
+  }
+  .contents .is-failed .figure {
+    color: var(--fail);
   }
 
-  /* The one orchestrated moment: on the sign-in page the marks are drawn in. */
-  .mark-draw {
-    animation: mark-draw 520ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
-    animation-delay: calc(400ms + var(--i, 0) * 260ms);
+  .section-rule {
+    border-top: 3px solid var(--ink);
+    padding-top: 0.625rem;
   }
 
-  .pulse-dot {
-    animation: pulse-dot 1.4s ease-in-out infinite;
+  .state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    font-variation-settings: "wdth" 72;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.875rem;
+  }
+  .state::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    background: currentColor;
+  }
+  .state-ready {
+    color: var(--viridian);
+  }
+  .state-processing {
+    background: var(--live);
+    color: var(--on-live);
+    padding: 0.125rem 0.4rem;
+  }
+  .state-processing::before {
+    animation: breathe 1.6s ease-in-out infinite;
+  }
+  .state-failed {
+    color: var(--fail);
+  }
+
+  .notice {
+    max-width: 70ch;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    padding: 0.75rem 1rem;
+  }
+  .notice-error {
+    border-color: var(--fail);
+    background: var(--fail-wash);
+  }
+
+  /* A word the document leans on: underlined in viridian, lighter by rank. */
+  .mark-word {
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: 0.14em;
+    text-underline-offset: 0.2em;
+    text-decoration-skip-ink: none;
+    text-decoration-color: color-mix(
+      in oklab,
+      var(--viridian) calc(100% - var(--rank, 0) * 6%),
+      transparent
+    );
+  }
+
+  .data-table {
+    width: 100%;
+    border-top: 3px solid var(--ink);
+    text-align: left;
+    font-size: 0.9375rem;
+  }
+  .data-table thead th {
+    font-variation-settings: "wdth" 72;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.8125rem;
+    color: var(--muted);
+    padding: 0.625rem 1rem 0.625rem 0;
+    border-bottom: 1px solid var(--ink);
+  }
+  .data-table td,
+  .data-table tbody th {
+    padding: 0.625rem 1rem 0.625rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .data-table .num {
+    text-align: right;
+  }
+
+  /* The one authored moment: on the sign-in cover, the leaders are set
+     across, line by line, as if the contents were being typeset. */
+  .leader-set {
+    transform-origin: left center;
+    animation: leader-set 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(300ms + var(--i, 0) * 120ms);
   }
 }
 
-@keyframes mark-draw {
+@keyframes leader-set {
   from {
-    background-size: 0% var(--marker-height);
-    color: var(--ink);
+    transform: translateY(-0.3em) scaleX(0);
   }
   to {
-    background-size: 100% var(--marker-height);
-    color: var(--marker-ink);
+    transform: translateY(-0.3em) scaleX(1);
   }
 }
 
-@keyframes pulse-dot {
+@keyframes breathe {
   50% {
-    opacity: 0.3;
+    opacity: 0.25;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mark-draw,
-  .pulse-dot {
+  .leader-set,
+  .state-processing::before {
     animation: none;
   }
 }
