@@ -8,9 +8,9 @@ import { getCurrentUser } from "@/lib/auth";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <header className="border-b border-zinc-200 dark:border-zinc-800">
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-3">
-          <Link href="/" className="font-semibold tracking-tight">
+      <header className="border-b border-rule">
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4 sm:px-6">
+          <Link href="/" className="text-xl font-extrabold tracking-tight">
             Digest
           </Link>
           {/* The session read stays inside a boundary, so the rest of the
@@ -20,10 +20,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Suspense>
         </div>
       </header>
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-8">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
         {children}
       </main>
-      <footer className="mx-auto w-full max-w-3xl px-4 py-4 text-xs text-zinc-500">
+      <footer className="mx-auto w-full max-w-5xl px-4 pb-6 text-sm text-graphite sm:px-6">
         <Suspense fallback={null}>
           <ApiStatusLine />
         </Suspense>
@@ -35,18 +35,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 async function Account() {
   const user = await getCurrentUser();
   return (
-    <div className="flex items-center gap-3 text-sm">
+    <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+      <Link href="/" className="font-medium hover:underline">
+        Documents
+      </Link>
       {user.role === "admin" && (
-        <Link href="/admin" className="underline">
-          Admin
+        <Link href="/admin" className="font-medium hover:underline">
+          Accounts
         </Link>
       )}
-      <span className="text-zinc-600 dark:text-zinc-400">{user.email}</span>
+      <span className="text-graphite">{user.email}</span>
       <form action={logout}>
-        <button type="submit" className="underline">
+        <button type="submit" className="link">
           Log out
         </button>
       </form>
-    </div>
+    </nav>
   );
 }

@@ -2,7 +2,7 @@ import { getDemoAccounts } from "@/lib/demo";
 
 import { demoLogin } from "./actions";
 
-const LABELS = { user: "Log in as demo user", admin: "Log in as admin" } as const;
+const LABELS = { user: "Log in as the demo user", admin: "Log in as the admin" } as const;
 
 export async function DemoButtons() {
   const accounts = await getDemoAccounts();
@@ -10,16 +10,15 @@ export async function DemoButtons() {
     return null;
   }
   return (
-    <section className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">Just looking around?</p>
+    <section aria-labelledby="demo" className="flex flex-col gap-3 border-t border-rule pt-6">
+      <h2 id="demo" className="text-graphite">
+        Just looking around? Use a demo account.
+      </h2>
       {accounts.map((account) => (
         <form key={account.role} action={demoLogin.bind(null, account.role)}>
-          <button
-            type="submit"
-            className="w-full rounded border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-zinc-700"
-          >
+          <button type="submit" className="btn-outline">
             {LABELS[account.role]}
-            <span className="block text-xs font-normal text-zinc-500">{account.email}</span>
+            <span className="text-sm font-normal text-graphite">{account.email}</span>
           </button>
         </form>
       ))}

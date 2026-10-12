@@ -1,15 +1,22 @@
 import type { DocumentStatus } from "@/lib/documents";
 
-const STYLES: Record<DocumentStatus, string> = {
-  ready: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
-  processing: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
-  failed: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300",
+const LABELS: Record<DocumentStatus, string> = {
+  ready: "Ready",
+  processing: "Analysing",
+  failed: "Failed",
+};
+
+const DOTS: Record<DocumentStatus, string> = {
+  ready: "bg-settled",
+  processing: "bg-graphite pulse-dot",
+  failed: "bg-correction",
 };
 
 export function StatusBadge({ status }: { status: DocumentStatus }) {
   return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${STYLES[status]}`}>
-      {status}
+    <span className="inline-flex shrink-0 items-center gap-2 text-sm font-medium">
+      <span aria-hidden className={`size-2 rounded-full ${DOTS[status]}`} />
+      {LABELS[status]}
     </span>
   );
 }

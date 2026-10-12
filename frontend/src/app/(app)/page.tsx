@@ -8,16 +8,13 @@ import { type Document, listDocuments } from "@/lib/documents";
 export default function DocumentsPage() {
   return (
     <>
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Your documents</h1>
-        <Link
-          href="/documents/new"
-          className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-        >
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="text-4xl font-extrabold tracking-tight">Your documents</h1>
+        <Link href="/documents/new" className="btn">
           New document
         </Link>
       </div>
-      <Suspense fallback={<p className="text-zinc-500">Loading your documents…</p>}>
+      <Suspense fallback={<p className="text-graphite">Loading your documents…</p>}>
         <DocumentList />
       </Suspense>
     </>
@@ -28,29 +25,29 @@ async function DocumentList() {
   const documents = await listDocuments();
   if (documents.length === 0) {
     return (
-      <div className="rounded border border-dashed border-zinc-300 px-6 py-12 text-center dark:border-zinc-700">
-        <p className="font-medium">No documents yet</p>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Paste some text or upload a .txt or .csv file to see its insights.
+      <div className="flex flex-col items-start gap-4 rounded-md border border-dashed border-rule bg-sheet px-6 py-14 sm:px-10">
+        <p className="max-w-[34ch] font-serif text-2xl leading-snug">
+          Paste some text or upload a file, and Digest will mark the{" "}
+          <span className="mark">words</span> it leans on most.
         </p>
-        <Link href="/documents/new" className="mt-4 inline-block text-sm underline">
+        <p className="text-graphite">Plain text and CSV files up to 10 MB both work.</p>
+        <Link href="/documents/new" className="btn">
           Add your first document
         </Link>
       </div>
     );
   }
   return (
-    <>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        {documents.length} {documents.length === 1 ? "document" : "documents"}, newest
-        first
+    <section aria-labelledby="count" className="flex flex-col gap-3">
+      <p id="count" className="text-sm text-graphite">
+        {documents.length} {documents.length === 1 ? "document" : "documents"}, newest first
       </p>
-      <ul className="divide-y divide-zinc-200 rounded border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+      <ul className="divide-y divide-rule overflow-hidden rounded-md border border-rule bg-sheet">
         {documents.map((document) => (
           <DocumentRow key={document.id} document={document} />
         ))}
       </ul>
-    </>
+    </section>
   );
 }
 
@@ -59,12 +56,13 @@ function DocumentRow({ document }: { document: Document }) {
     <li>
       <Link
         href={`/documents/${document.id}`}
-        className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+        className="group flex items-center justify-between gap-6 px-5 py-4 focus-visible:-outline-offset-2"
       >
         <div className="min-w-0">
-          <p className="truncate font-medium">{document.title}</p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {documentSource(document)} · {formatDateTime(document.created_at)}
+          <p className="truncate text-lg font-semibold group-hover:underline">{document.title}</p>
+          <p className="mt-0.5 flex flex-wrap gap-x-4 text-sm text-graphite">
+            <span>{documentSource(document)}</span>
+            <time dateTime={document.created_at}>{formatDateTime(document.created_at)}</time>
           </p>
         </div>
         <StatusBadge status={document.status} />

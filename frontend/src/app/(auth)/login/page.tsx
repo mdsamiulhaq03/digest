@@ -8,15 +8,15 @@ import { DemoButtons } from "../demo-buttons";
 export default function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <>
-      <h1 className="text-xl font-medium">Log in</h1>
+      <h1 className="text-3xl font-extrabold tracking-tight">Log in</h1>
       {/* Reads the URL at request time, so it streams in behind a boundary. */}
       <Suspense fallback={null}>
         <ExpiredNotice searchParams={searchParams} />
       </Suspense>
       <AuthForm action={login} submitLabel="Log in" />
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="text-graphite">
         No account?{" "}
-        <Link href="/register" className="underline">
+        <Link href="/register" className="link text-ink">
           Create one
         </Link>
       </p>
@@ -34,7 +34,7 @@ async function ExpiredNotice({ searchParams }: Pick<PageProps<"/login">, "search
     return null;
   }
   return (
-    <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+    <p role="status" className="rounded-r-md border-l-4 border-graphite bg-sheet px-4 py-3">
       Your session has expired. Log in again.
     </p>
   );

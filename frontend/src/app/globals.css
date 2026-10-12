@@ -1,26 +1,184 @@
 @import "tailwindcss";
 
+/* Proof paper, navy ink and one highlighter. The highlighter is the only loud
+   thing on any page: it marks the words a document leans on most. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --paper: #eef0f2;
+  --sheet: #ffffff;
+  --ink: #1d2433;
+  --graphite: #5b6475;
+  --rule: #d3d8df;
+  --marker: #f5e15a;
+  --marker-ink: currentColor;
+  --marker-height: 68%;
+  --correction: #b8322b;
+  --correction-wash: #f8e6e4;
+  --settled: #2c7351;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --paper: #151920;
+    --sheet: #1d222b;
+    --ink: #e5e8ed;
+    --graphite: #9aa3b2;
+    --rule: #2f3643;
+    --marker: #e3cf4c;
+    /* On a dark page the stroke takes the full line, so its dark text never
+       spills onto the background. */
+    --marker-ink: #1d2433;
+    --marker-height: 100%;
+    --correction: #f0857b;
+    --correction-wash: #3a1f1f;
+    --settled: #72c69a;
+  }
+
+  /* Dark text on a faded stroke would sink into the page, so no rank fade. */
+  .mark {
+    --stroke: var(--marker);
   }
 }
 
+@theme inline {
+  --color-paper: var(--paper);
+  --color-sheet: var(--sheet);
+  --color-ink: var(--ink);
+  --color-graphite: var(--graphite);
+  --color-rule: var(--rule);
+  --color-marker: var(--marker);
+  --color-correction: var(--correction);
+  --color-correction-wash: var(--correction-wash);
+  --color-settled: var(--settled);
+  --font-sans: var(--font-grotesk);
+  --font-serif: var(--font-newsreader);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-grotesk), system-ui, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.375rem;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 0.625rem 1.125rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    transition: opacity 120ms;
+  }
+  .btn:hover {
+    opacity: 0.88;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-outline {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    border: 1px solid var(--rule);
+    border-radius: 0.375rem;
+    background: var(--sheet);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+  }
+  .btn-outline:hover {
+    border-color: var(--graphite);
+  }
+
+  .field {
+    width: 100%;
+    border: 1px solid var(--rule);
+    border-radius: 0.375rem;
+    background: var(--sheet);
+    padding: 0.625rem 0.75rem;
+    font-size: 1rem;
+  }
+  .field:hover {
+    border-color: var(--graphite);
+  }
+  .field:focus-visible {
+    outline-offset: 0;
+    border-color: var(--ink);
+  }
+  .field[aria-invalid="true"] {
+    border-color: var(--correction);
+  }
+
+  .link {
+    text-decoration: underline;
+    text-decoration-color: var(--graphite);
+    text-underline-offset: 0.2em;
+  }
+  .link:hover {
+    text-decoration-color: var(--ink);
+  }
+
+  /* A highlighter stroke: lower two-thirds of the line, slightly ragged ends. */
+  .mark {
+    /* Rank 0 is full strength; each rank after it is a lighter press. */
+    --stroke: color-mix(in oklab, var(--marker) calc(100% - var(--rank, 0) * 7%), transparent);
+    background-color: transparent;
+    background-image: linear-gradient(var(--stroke), var(--stroke));
+    color: var(--marker-ink);
+    background-repeat: no-repeat;
+    background-size: 100% var(--marker-height);
+    background-position: 0 75%;
+    border-radius: 0.15em 0.4em 0.2em 0.35em;
+    padding: 0 0.1em;
+    margin: 0 -0.1em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  /* The one orchestrated moment: on the sign-in page the marks are drawn in. */
+  .mark-draw {
+    animation: mark-draw 520ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
+    animation-delay: calc(400ms + var(--i, 0) * 260ms);
+  }
+
+  .pulse-dot {
+    animation: pulse-dot 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes mark-draw {
+  from {
+    background-size: 0% var(--marker-height);
+    color: var(--ink);
+  }
+  to {
+    background-size: 100% var(--marker-height);
+    color: var(--marker-ink);
+  }
+}
+
+@keyframes pulse-dot {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mark-draw,
+  .pulse-dot {
+    animation: none;
+  }
 }

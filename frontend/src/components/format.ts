@@ -40,5 +40,5 @@ export function documentSource(document: Document): string {
     return "Pasted text";
   }
   const kind = document.content_type === "text/csv" ? "CSV file" : "Text file";
-  return `${kind} · ${formatBytes(document.size_bytes)}`;
+  return `${kind}, ${formatBytes(document.size_bytes)}`;
 }

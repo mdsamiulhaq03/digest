@@ -3,26 +3,22 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { AutoRefresh } from "@/components/auto-refresh";
+import { CsvInsightsView } from "@/components/csv-insights";
 import {
   documentSource,
   formatDateTime,
   formatNumber,
   formatReadingTime,
 } from "@/components/format";
+import { HighlightedText, rankStyle } from "@/components/highlighted-text";
 import { StatusBadge } from "@/components/status-badge";
-import {
-  type CsvInsights,
-  type Document,
-  getDocument,
-  getJob,
-  type TextInsights,
-} from "@/lib/documents";
+import { type Document, getDocument, getJob, type TextInsights } from "@/lib/documents";
 
 const POLL_INTERVAL_MS = 2000;
 
 export default function DocumentPage({ params }: PageProps<"/documents/[id]">) {
   return (
-    <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
+    <Suspense fallback={<p className="text-graphite">Loading…</p>}>
       <DocumentView params={params} />
     </Suspense>
   );
@@ -36,18 +32,22 @@ async function DocumentView({ params }: Pick<PageProps<"/documents/[id]">, "para
   }
   return (
     <>
-      <Link href="/" className="text-sm underline">
-        ← Your documents
+      <Link href="/" className="link self-start text-sm">
+        Back to your documents
       </Link>
-      <div className="flex items-start justify-between gap-4">
+      <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3 border-b border-rule pb-6">
         <div className="min-w-0">
-          <h1 className="break-words text-2xl font-semibold tracking-tight">{document.title}</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {documentSource(document)} · added {formatDateTime(document.created_at)}
+          <h1 className="wrap-break-word text-4xl font-extrabold tracking-tight">{document.title}</h1>
+          <p className="mt-2 flex flex-wrap gap-x-4 text-graphite">
+            <span>{documentSource(document)}</span>
+            <span>
+              Added{" "}
+              <time dateTime={document.created_at}>{formatDateTime(document.created_at)}</time>
+            </span>
           </p>
         </div>
         <StatusBadge status={document.status} />
-      </div>
+      </header>
       <Body document={document} />
     </>
   );
@@ -60,9 +60,9 @@ async function Body({ document }: { document: Document }) {
         {/* Swaps itself for the insights once the job finishes. */}
         <AutoRefresh intervalMs={POLL_INTERVAL_MS} />
         <Notice>
-          This file is still being analysed.{" "}
+          This file is still being analysed. The insights appear here when it&apos;s done.{" "}
           {document.job_id && (
-            <Link href={`/jobs/${document.job_id}`} className="underline">
+            <Link href={`/jobs/${document.job_id}`} className="link">
               Watch its progress
             </Link>
           )}
@@ -75,116 +75,107 @@ async function Body({ document }: { document: Document }) {
     return (
       <Notice tone="error">
         This file couldn&apos;t be analysed
-        {job?.last_error ? `: ${job.last_error}` : "."}
+        {job?.last_error ? `: ${job.last_error}` : "."} Check that it&apos;s a UTF-8 .txt or
+        .csv file and upload it again.
       </Notice>
     );
   }
+  if (document.insights) {
+    return <TextReading insights={document.insights} text={document.text} />;
+  }
+  if (document.csv_insights) {
+    return <CsvInsightsView insights={document.csv_insights} />;
+  }
+  return null;
+}
+
+/** The text on a sheet with its top words marked, and the counts in the margin. */
+function TextReading({ insights, text }: { insights: TextInsights; text: string | null }) {
+  if (text === null) {
+    return <Margin insights={insights} wide />;
+  }
   return (
-    <>
-      {document.insights && <TextInsightsView insights={document.insights} />}
-      {document.csv_insights && <CsvInsightsView insights={document.csv_insights} />}
-      {document.text !== null && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-medium">Text</h2>
-          <p className="whitespace-pre-wrap rounded border border-zinc-200 p-4 text-sm dark:border-zinc-800">
-            {document.text}
-          </p>
-        </section>
-      )}
-    </>
+    <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
+      <article
+        aria-label="Text"
+        className="order-2 rounded-md border border-rule bg-sheet px-5 py-8 sm:px-10 sm:py-12 lg:order-1"
+      >
+        <p className="max-w-[66ch] whitespace-pre-wrap wrap-break-word font-serif text-lg leading-[1.75]">
+          <HighlightedText text={text} words={insights.top_words} />
+        </p>
+      </article>
+      <div className="order-1 lg:sticky lg:top-6 lg:order-2">
+        <Margin insights={insights} />
+      </div>
+    </div>
   );
 }
 
-function TextInsightsView({ insights }: { insights: TextInsights }) {
+function Margin({ insights, wide = false }: { insights: TextInsights; wide?: boolean }) {
   const stats: [string, string][] = [
     ["Words", formatNumber(insights.word_count)],
-    ["Unique words", formatNumber(insights.unique_word_count)],
+    ["Different words", formatNumber(insights.unique_word_count)],
     ["Sentences", formatNumber(insights.sentence_count)],
     ["Paragraphs", formatNumber(insights.paragraph_count)],
     ["Characters", formatNumber(insights.char_count)],
     ["Without spaces", formatNumber(insights.char_count_no_whitespace)],
-    ["Average word length", `${formatNumber(insights.average_word_length)} letters`],
-    ["Reading time", formatReadingTime(insights.estimated_reading_time_seconds)],
+    ["Average word", `${formatNumber(insights.average_word_length)} letters`],
   ];
   return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-medium">Insights</h2>
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {stats.map(([label, value]) => (
-          <div key={label} className="rounded border border-zinc-200 p-3 dark:border-zinc-800">
-            <dt className="text-xs text-zinc-500">{label}</dt>
-            <dd className="text-lg font-medium">{value}</dd>
-          </div>
-        ))}
-      </dl>
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">Top words</h3>
+    <aside className={`grid gap-8 ${wide ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-1"}`}>
+      <section aria-labelledby="top-words" className="flex flex-col gap-3">
+        <h2 id="top-words" className="font-semibold">
+          Most used words
+        </h2>
         {insights.top_words.length === 0 ? (
-          <p className="text-sm text-zinc-500">None - only common words like &ldquo;the&rdquo;.</p>
+          <p className="text-graphite">
+            None stand out. Only common words like &ldquo;the&rdquo; repeat.
+          </p>
         ) : (
-          <ol className="flex flex-wrap gap-2">
-            {insights.top_words.map((word) => (
-              <li key={word} className="rounded bg-zinc-100 px-2 py-1 text-sm dark:bg-zinc-800">
-                {word}
+          <ol className="flex flex-wrap gap-x-5 gap-y-1.5 lg:flex-col">
+            {insights.top_words.map((word, index) => (
+              <li key={word} className="flex items-baseline gap-2 lg:gap-3">
+                <span className="text-sm text-graphite lg:w-5 lg:text-right">{index + 1}</span>
+                <span className="mark font-serif text-lg" style={rankStyle(index)}>
+                  {word}
+                </span>
               </li>
             ))}
           </ol>
         )}
-      </div>
-    </section>
+      </section>
+      <section aria-labelledby="counts" className="flex flex-col gap-3">
+        <h2 id="counts" className="font-semibold">
+          {capitalise(formatReadingTime(insights.estimated_reading_time_seconds))} to read
+        </h2>
+        <dl className="divide-y divide-rule border-y border-rule">
+          {stats.map(([label, value]) => (
+            <div key={label} className="flex items-baseline justify-between gap-4 py-2">
+              <dt className="text-graphite">{label}</dt>
+              <dd className="font-semibold">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    </aside>
   );
 }
 
-function CsvInsightsView({ insights }: { insights: CsvInsights }) {
-  return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-lg font-medium">Insights</h2>
-      <p className="text-sm">
-        {formatNumber(insights.row_count)} rows × {formatNumber(insights.column_count)} columns
-      </p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-200 dark:border-zinc-800">
-            <tr>
-              {["Column", "Type", "Empty", "Min", "Max", "Mean"].map((heading) => (
-                <th key={heading} className="py-2 pr-4 font-medium">
-                  {heading}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {insights.columns.map((column, index) => (
-              // Index too: a CSV can repeat a header name.
-              <tr key={`${index}-${column.name}`} className="border-b border-zinc-100 dark:border-zinc-900">
-                <td className="py-2 pr-4 font-medium">{column.name}</td>
-                <td className="py-2 pr-4">{column.inferred_type}</td>
-                <td className="py-2 pr-4">{formatNumber(column.null_count)}</td>
-                <td className="py-2 pr-4">{optional(column.min)}</td>
-                <td className="py-2 pr-4">{optional(column.max)}</td>
-                <td className="py-2 pr-4">{optional(column.mean)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="text-xs text-zinc-500">Min, max and mean are only computed for numeric columns.</p>
-    </section>
-  );
+function capitalise(phrase: string): string {
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
 }
 
 function Notice({ children, tone = "info" }: { children: React.ReactNode; tone?: "info" | "error" }) {
   const colours =
     tone === "error"
-      ? "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200"
-      : "bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200";
+      ? "border-correction bg-correction-wash"
+      : "border-graphite bg-sheet";
   return (
-    <p role={tone === "error" ? "alert" : "status"} className={`rounded px-3 py-2 text-sm ${colours}`}>
+    <p
+      role={tone === "error" ? "alert" : "status"}
+      className={`max-w-[70ch] rounded-r-md border-l-4 px-4 py-3 ${colours}`}
+    >
       {children}
     </p>
   );
-}
-
-function optional(value: number | null): string {
-  return value === null ? "-" : formatNumber(value);
 }

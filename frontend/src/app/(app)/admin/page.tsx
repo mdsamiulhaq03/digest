@@ -14,8 +14,8 @@ type Account = {
 export default function AdminPage() {
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">All accounts</h1>
-      <Suspense fallback={<p className="text-zinc-500">Loading accounts…</p>}>
+      <h1 className="text-4xl font-extrabold tracking-tight">All accounts</h1>
+      <Suspense fallback={<p className="text-graphite">Loading accounts…</p>}>
         <Accounts />
       </Suspense>
     </>
@@ -33,30 +33,45 @@ async function Accounts() {
     "/admin/users",
   );
   return (
-    <>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+    <section aria-labelledby="account-count" className="flex flex-col gap-3">
+      <p id="account-count" className="text-sm text-graphite">
         {total} {total === 1 ? "account" : "accounts"}
       </p>
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-zinc-200 dark:border-zinc-800">
-          <tr>
-            <th className="py-2 font-medium">Email</th>
-            <th className="py-2 font-medium">Role</th>
-            <th className="py-2 font-medium">Status</th>
-            <th className="py-2 font-medium">Joined</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((account) => (
-            <tr key={account.id} className="border-b border-zinc-100 dark:border-zinc-900">
-              <td className="py-2">{account.email}</td>
-              <td className="py-2">{account.role}</td>
-              <td className="py-2">{account.is_active ? "active" : "disabled"}</td>
-              <td className="py-2">{new Date(account.created_at).toLocaleDateString("en-GB")}</td>
+      <div className="overflow-x-auto rounded-md border border-rule bg-sheet">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-rule text-graphite">
+            <tr>
+              {["Email", "Role", "Status", "Joined"].map((heading) => (
+                <th key={heading} scope="col" className="px-4 py-3 font-medium">
+                  {heading}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+          </thead>
+          <tbody className="divide-y divide-rule">
+            {users.map((account) => (
+              <tr key={account.id}>
+                <th scope="row" className="px-4 py-3 font-semibold">
+                  {account.email}
+                </th>
+                <td className="px-4 py-3 capitalize">{account.role}</td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      aria-hidden
+                      className={`size-2 rounded-full ${account.is_active ? "bg-settled" : "bg-rule"}`}
+                    />
+                    {account.is_active ? "Active" : "Disabled"}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-graphite">
+                  {new Date(account.created_at).toLocaleDateString("en-GB")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

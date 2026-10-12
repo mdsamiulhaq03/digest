@@ -18,7 +18,7 @@ export function AuthForm({
   const [state, formAction, pending] = useActionState(action, undefined);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form action={formAction} className="flex flex-col gap-5">
       <Field
         label="Email"
         name="email"
@@ -36,16 +36,12 @@ export function AuthForm({
         error={state?.fieldErrors.password}
       />
       {state?.message && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-correction">
           {state.message}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
-      >
-        {pending ? "Please wait…" : submitLabel}
+      <button type="submit" disabled={pending} className="btn w-full">
+        {pending ? "Working…" : submitLabel}
       </button>
     </form>
   );
@@ -69,7 +65,7 @@ function Field({
   error?: string;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm">
+    <label className="flex flex-col gap-1.5">
       <span className="font-medium">{label}</span>
       <input
         name={name}
@@ -78,10 +74,10 @@ function Field({
         autoComplete={autoComplete}
         defaultValue={defaultValue}
         aria-invalid={error ? true : undefined}
-        className="rounded border border-zinc-300 bg-transparent px-3 py-2 dark:border-zinc-700"
+        className="field"
       />
-      {hint && !error && <span className="text-zinc-500">{hint}</span>}
-      {error && <span className="text-red-600">{error}</span>}
+      {hint && !error && <span className="text-sm text-graphite">{hint}</span>}
+      {error && <span className="text-sm text-correction">{error}</span>}
     </label>
   );
 }
