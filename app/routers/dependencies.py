@@ -10,11 +10,14 @@ input and adds a single check:
 A route asks for the narrowest one it needs and receives a User, never a token.
 """
 
+from functools import lru_cache
+
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 from sqlalchemy.orm import Session
 
+from app.core.cache import JsonCache, get_document_cache
 from app.core.db import get_db
 from app.core.exceptions import InvalidTokenError, PermissionDeniedError
 from app.core.queue import JobQueue, get_redis
@@ -43,8 +46,14 @@ def get_job_repository(db: Session = Depends(get_db)) -> JobRepository:
     return JobRepository(db)
 
 
+@lru_cache
 def get_job_queue() -> JobQueue:
+    # One per process, so its circuit breaker sees every upload.
     return JobQueue(get_redis())
+
+
+def get_cache() -> JsonCache:
+    return get_document_cache()
 
 
 def get_current_user(

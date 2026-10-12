@@ -48,6 +48,16 @@ The upload returns as soon as the file is stored; poll `status_url` until `state
 
 The worker doesn't hot-reload: after changing worker-side code, run `docker compose restart worker`.
 
+## Caching
+
+`GET /documents/{id}` is served from Redis when it can be. Nothing else is cached.
+
+- **Key:** `doc:v1:{owner_id}:{document_id}`. The owner is part of the key, so another user's lookup can only miss — the cache can never hand one user someone else's document. The `v1` prefix is bumped whenever the response shape changes, so a deploy never serves entries in an old shape.
+- **Only complete documents are cached:** pasted text, or an upload whose job has succeeded. A document still processing is about to change, so it's always read from Postgres. When a job succeeds, the worker also deletes that document's key, as a backstop.
+- **Identity is checked first.** The token and the account are verified against Postgres before the cache is consulted, so a disabled or deleted user is refused even if their document is cached.
+- **TTL: 1 hour** (`DOCUMENT_CACHE_TTL_SECONDS`). A document never changes once complete and the API can't edit one, so the TTL only bounds changes made *outside* the app (an edit in psql). Those can stay hidden for up to an hour — the same window a revoked user's 60-minute token keeps working.
+- **Redis down?** Reads fall back to Postgres; the request still succeeds. After a Redis failure the cache (and the upload queue) skip Redis for 5 seconds, because with its container stopped even resolving the hostname takes ~3.5s — without that, every request would pay it.
+
 ## Authentication
 
 ```powershell
@@ -162,7 +172,7 @@ A `Makefile` defines these targets (requires `make`, e.g. `choco install make`);
 
 `make test` runs the full suite (including tests marked `integration`, which need a real database) inside a container wired to Postgres. Integration tests truncate their tables before and after each test, so they never leave rows behind.
 
-Outside Docker, `pytest -m "not integration"` runs only the tests that don't touch the database — that's also what CI runs, since Postgres isn't wired into CI yet (that's Phase 7). Tests never need Redis: they swap the queue for an in-memory recorder, and uploads go to a temporary folder.
+Outside Docker, `pytest -m "not integration"` runs only the tests that don't touch the database — that's also what CI runs, since Postgres isn't wired into CI yet (that's Phase 7). Tests never need Redis: they swap the queue for an in-memory recorder and the cache for a fresh in-memory store per test, and uploads go to a temporary folder.
 
 ### Responsiveness under upload load
 
@@ -171,6 +181,14 @@ python scripts/measure_latency.py --base-url http://localhost:8000
 ```
 
 Times `GET /health` while idle and while 10 concurrent ~10 MB uploads run (5 rounds by default), and prints median, p95 and max for each. It registers a throwaway `latency-…@example.com` user, so run it against a development stack only. Measured from Windows, every request carries ~45 ms of Docker port-forwarding overhead; for clean numbers, copy the script into the `app` container and run it there.
+
+### Cache: cold vs warm reads
+
+```powershell
+python scripts/measure_cache.py --base-url http://localhost:8000
+```
+
+Creates 25 text and 25 CSV documents (needs the worker running), then reads each one twice: first a cache miss, then a hit. Client-side timings include transport overhead the cache can't affect, so compare the server-side `duration_ms` on the `request handled` access-log lines instead — measured that way, a miss took a median 10.6 ms and a hit 4.9 ms. Also uses a throwaway `latency-…@example.com` user.
 
 ## Images
 
