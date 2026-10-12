@@ -2,12 +2,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
 
+from app.core.cache import JsonCache
 from app.core.queue import JobQueue
 from app.models.user import User
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.job_repository import JobRepository
 from app.routers.dependencies import (
     get_active_user,
+    get_cache,
     get_document_repository,
     get_job_queue,
     get_job_repository,
@@ -67,5 +69,6 @@ def get_document(
     document_id: str,
     user: User = Depends(get_active_user),
     repo: DocumentRepository = Depends(get_document_repository),
+    cache: JsonCache = Depends(get_cache),
 ) -> DocumentResponse:
-    return document_service.get_document(document_id, user, repo)
+    return document_service.get_document(document_id, user, repo, cache)

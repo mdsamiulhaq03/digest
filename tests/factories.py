@@ -68,6 +68,32 @@ def upload(
     )
 
 
+class FakeRedis:
+    """Just enough of redis.Redis for JsonCache, with a switch to fail."""
+
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
+        self.store: dict[str, str] = {}
+        self.ttls: dict[str, int] = {}
+
+    def _maybe_fail(self) -> None:
+        if self.error:
+            raise self.error
+
+    def get(self, key: str) -> str | None:
+        self._maybe_fail()
+        return self.store.get(key)
+
+    def set(self, key: str, value: str, ex: int) -> None:
+        self._maybe_fail()
+        self.store = {**self.store, key: value}
+        self.ttls = {**self.ttls, key: ex}
+
+    def delete(self, key: str) -> None:
+        self._maybe_fail()
+        self.store = {k: v for k, v in self.store.items() if k != key}
+
+
 class RecordingQueue:
     """Captures enqueued ids instead of talking to Redis."""
 

@@ -1,9 +1,11 @@
 import uuid
 from dataclasses import asdict
+from typing import NoReturn
 
 from loguru import logger
 from pydantic import BaseModel
 
+from app.core.cache import JsonCache, document_key
 from app.core.exceptions import DocumentNotFoundError
 from app.models.document import Document
 from app.models.insight import Insight
@@ -55,22 +57,45 @@ def list_documents(owner: User, repo: DocumentRepository) -> DocumentListRespons
 
 
 def get_document(
-    document_id: str, owner: User, repo: DocumentRepository
+    document_id: str, owner: User, repo: DocumentRepository, cache: JsonCache
 ) -> DocumentResponse:
     # A malformed id, a missing document and someone else's document are all
     # the same 404, so a caller can't probe ids to learn which documents exist.
-    document = _find_owned_document(document_id, owner, repo)
+    document_uuid = _parse_id(document_id)
+    if document_uuid is None:
+        _not_found(document_id)
+
+    # The caller's identity was already checked against Postgres before we got
+    # here, so a disabled or deleted user never reaches a cached entry.
+    key = document_key(owner.id, document_uuid)
+    cached = cache.get(key)
+    if cached is not None:
+        return DocumentResponse.model_validate(cached)
+
+    document = repo.get_for_owner(document_uuid, owner.id)
     if document is None:
-        logger.info("document not found", document_id=document_id)
-        raise DocumentNotFoundError(document_id)
-    return _to_response(document)
+        _not_found(document_id)
+    response = _to_response(document)
+    if _is_complete(document):
+        cache.set(key, response.model_dump(mode="json"))
+    return response
 
 
-def _find_owned_document(
-    document_id: str, owner: User, repo: DocumentRepository
-) -> Document | None:
+def _is_complete(document: Document) -> bool:
+    """Pasted text, or an upload whose job has stored its insights. Anything
+    else is about to change, so caching it would only create staleness."""
+    return document.text is not None or (
+        document.insight is not None or document.csv_insight is not None
+    )
+
+
+def _parse_id(document_id: str) -> uuid.UUID | None:
     try:
-        document_uuid = uuid.UUID(document_id)
+        return uuid.UUID(document_id)
     except ValueError:
         return None
-    return repo.get_for_owner(document_uuid, owner.id)
+
+
+def _not_found(document_id: str) -> NoReturn:
+    logger.info("document not found", document_id=document_id)
+    raise DocumentNotFoundError(document_id)

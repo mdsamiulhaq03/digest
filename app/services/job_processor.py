@@ -9,6 +9,7 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.core import storage
+from app.core.cache import JsonCache, document_key, get_document_cache
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.queue import JobQueue
@@ -30,6 +31,7 @@ def process_job(
     job_id: uuid.UUID,
     queue: JobQueue,
     session_factory: Callable[[], Session] = SessionLocal,
+    cache: JsonCache | None = None,
 ) -> None:
     # A fresh session per job: a worker holding one session for its whole
     # life would carry stale state and a long-open transaction between jobs.
@@ -47,8 +49,10 @@ def process_job(
         attempt = job.attempts
         logger.info("job started", job_id=str(job_id), attempt=attempt)
 
+        document = jobs.document_for(job)
+        cache_key = document_key(document.owner_id, document.id)
         try:
-            _compute_and_store(jobs.document_for(job), InsightRepository(db))
+            _compute_and_store(document, InsightRepository(db))
         except Exception as exc:  # noqa: BLE001 - every failure must be recorded
             db.rollback()
             _record_failure(jobs, job_id, attempt, exc, queue)
@@ -59,6 +63,10 @@ def process_job(
         # still looks unfinished.
         if jobs.mark_succeeded(job_id, attempt):
             jobs.commit()
+            # Unfinished documents are never cached, so there should be
+            # nothing here to remove. Deleting anyway means a future change
+            # to that rule can't leave a finished document showing no insights.
+            (cache or get_document_cache()).delete(cache_key)
             logger.info("job succeeded", job_id=str(job_id))
         else:
             db.rollback()

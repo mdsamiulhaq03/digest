@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
     job_max_attempts: int = Field(default=3, gt=0)
     job_stuck_after_seconds: int = Field(default=300, gt=0)
+    # Matches the token lifetime: a change made outside the app is visible for
+    # at most as long as a revoked user's token keeps working anyway.
+    document_cache_ttl_seconds: int = Field(default=3600, gt=0)
 
 
 @lru_cache

@@ -4,11 +4,13 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 
+from app.core.cache import JsonCache
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.main import app
-from app.routers.dependencies import get_active_user, get_job_queue
-from tests.factories import RecordingQueue, make_user
+from app.routers.dependencies import get_active_user, get_cache, get_job_queue
+from app.services import job_processor
+from tests.factories import FakeRedis, RecordingQueue, make_user
 
 
 def _truncate() -> None:
@@ -39,6 +41,18 @@ def as_some_user() -> Iterator[None]:
     app.dependency_overrides[get_active_user] = lambda: make_user()
     yield
     app.dependency_overrides.pop(get_active_user)
+
+
+@pytest.fixture(autouse=True)
+def cache_redis(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeRedis]:
+    """Every test gets its own empty in-memory cache, so tests never read
+    entries left by another test, and never write into the dev Redis."""
+    fake = FakeRedis()
+    cache = JsonCache(fake, get_settings().document_cache_ttl_seconds)
+    app.dependency_overrides[get_cache] = lambda: cache
+    monkeypatch.setattr(job_processor, "get_document_cache", lambda: cache)
+    yield fake
+    app.dependency_overrides.pop(get_cache)
 
 
 @pytest.fixture
