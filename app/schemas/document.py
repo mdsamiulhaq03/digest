@@ -25,14 +25,49 @@ class InsightsSchema(BaseModel):
     estimated_reading_time_seconds: float
 
 
+class ColumnStatsSchema(BaseModel):
+    """Per-column statistics for an uploaded CSV."""
+
+    name: str
+    null_count: int
+    inferred_type: str
+    min: float | None
+    max: float | None
+    mean: float | None
+
+
+class CsvInsightsSchema(BaseModel):
+    """Computed CSV insights returned to the client."""
+
+    row_count: int
+    column_count: int
+    columns: list[ColumnStatsSchema]
+
+
 class DocumentResponse(BaseModel):
-    """Response shape returned for a single document."""
+    """Response shape returned for a single document.
+
+    Pasted text has `text` and `insights`. An uploaded file has the file fields,
+    and `insights` (.txt) or `csv_insights` (.csv) once its job has succeeded -
+    until then, both are null."""
 
     id: uuid.UUID
     title: str
-    text: str
-    insights: InsightsSchema
+    text: str | None
+    original_filename: str | None
+    content_type: str | None
+    size_bytes: int | None
+    insights: InsightsSchema | None
+    csv_insights: CsvInsightsSchema | None
     created_at: datetime
+
+
+class UploadAcceptedResponse(BaseModel):
+    """Returned with 202: the file is stored, its insights are not computed yet."""
+
+    document_id: uuid.UUID
+    job_id: uuid.UUID
+    status_url: str
 
 
 class DocumentListResponse(BaseModel):

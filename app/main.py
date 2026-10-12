@@ -9,7 +9,7 @@ from app.core.error_handlers import (
 from app.core.exceptions import AppError
 from app.core.logging import configure_logging
 from app.core.middleware import RequestIdMiddleware
-from app.routers import admin, auth, documents, health
+from app.routers import admin, auth, documents, health, jobs
 
 configure_logging()
 
@@ -24,4 +24,5 @@ app.add_exception_handler(Exception, unhandled_exception_handler)
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(documents.router)
+app.include_router(jobs.router)
 app.include_router(admin.router)

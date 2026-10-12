@@ -12,13 +12,18 @@ EMAIL_UNIQUE_CONSTRAINT = "users_email_key"
 
 
 class UserRepository:
+    """Stages changes but never commits: the service decides where a unit of
+    work ends, so several writes can succeed or fail together."""
+
     def __init__(self, db: Session) -> None:
         self.db = db
 
     def create(self, user: User) -> User:
         self.db.add(user)
         try:
-            self.db.commit()
+            # Flush sends the INSERT now, so a duplicate email surfaces here
+            # as a domain error rather than later at the service's commit.
+            self.db.flush()
         except IntegrityError as exc:
             self.db.rollback()
             # Two sign-ups for one email can both pass the service's lookup;
@@ -28,6 +33,9 @@ class UserRepository:
             raise
         self.db.refresh(user)
         return user
+
+    def commit(self) -> None:
+        self.db.commit()
 
     def get_by_id(self, user_id: uuid.UUID) -> User | None:
         return self.db.get(User, user_id)

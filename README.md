@@ -6,22 +6,47 @@ Document ingestion and insight service, built phase by phase.
 
 - `POST /auth/register` - create an account (email + password, 8–128 chars)
 - `POST /auth/login` - exchange credentials for a bearer token
-- `POST /documents` - submit title + text, get insights back
+- `POST /documents` - submit title + text, get insights back immediately
+- `POST /documents/upload` - upload a `.txt` or `.csv` file (max 10 MB); insights are computed in the background
+- `GET /jobs/{id}` - poll a background job
 - `GET /documents` - list **your** documents, newest first
 - `GET /documents/{id}` - fetch one of **your** documents
 - `GET /admin/users` - list every account (admin only)
 - `GET /health` - health check
 
-Everything under `/documents` and `/admin` needs an `Authorization: Bearer <token>` header.
+Everything under `/documents`, `/jobs` and `/admin` needs an `Authorization: Bearer <token>` header.
 
-Insights per document:
+Text insights (pasted text and `.txt` uploads):
 
 - character, word, unique word, sentence and paragraph counts
 - average word length
 - top 10 words
 - estimated reading time
 
-> **Note:** documents and insights are stored in Postgres. Schema is versioned with Alembic migrations, which run automatically on container startup.
+CSV insights (`.csv` uploads): row and column counts, and per column its name, null count, inferred type (`integer`, `float`, `boolean`, `string` or `empty`), and min/max/mean for numeric columns.
+
+> **Note:** documents, jobs and insights are stored in Postgres. Schema is versioned with Alembic migrations, which run automatically on container startup.
+
+## Uploads and background jobs
+
+```powershell
+curl.exe -X POST localhost:8000/documents/upload -H "Authorization: Bearer eyJ..." -F "file=@sales.csv"
+# -> 202 Accepted, Location: /jobs/7c1e...
+#    {"document_id": "...", "job_id": "7c1e...", "status_url": "/jobs/7c1e..."}
+
+curl.exe localhost:8000/jobs/7c1e... -H "Authorization: Bearer eyJ..."
+# -> {"state": "succeeded", "attempts": 1, "last_error": null, "document_url": "/documents/...", ...}
+```
+
+The upload returns as soon as the file is stored; poll `status_url` until `state` is `succeeded` (insights are then on the document) or `failed` (`last_error` says why).
+
+- Files are stored under `UPLOAD_DIR` by document id, never by their original name, so names can't collide or escape the directory.
+- Only `.txt` and `.csv` are accepted (**415** otherwise), decided by extension rather than the client's `Content-Type`. Over 10 MB is **413**. Files must be UTF-8.
+- Jobs go `queued → running → succeeded | failed`. An unexpected failure is retried up to 3 attempts; a file that can never succeed (not UTF-8, missing) fails at once.
+- A separate `worker` container takes job ids from a Redis list. Postgres holds the jobs themselves, so if Redis or the worker dies, a sweeper (on worker startup, then every minute) finds stuck or never-queued jobs and puts them back.
+- `docker compose stop worker` lets the job in progress finish before the worker exits.
+
+The worker doesn't hot-reload: after changing worker-side code, run `docker compose restart worker`.
 
 ## Authentication
 
@@ -97,7 +122,7 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 docker compose up --build
 ```
 
-The API is available at http://localhost:8000, with hot reload on changes under `app/`. Postgres data persists across `docker compose down` via a named volume. Migrations run automatically before the server starts, including on a completely fresh volume.
+This starts four services: `app` (the API), `worker`, `db` (Postgres) and `redis`. The API is available at http://localhost:8000, with hot reload on changes under `app/`. Postgres data and uploaded files persist across `docker compose down` via named volumes. Migrations run automatically before the server starts, including on a completely fresh volume; the worker waits for the API to be healthy, so it never starts against an unmigrated database. Redis is only reachable inside Compose.
 
 ### Without Docker
 
@@ -110,9 +135,14 @@ python -m venv .venv
 pip install -r requirements-dev.txt
 $env:DATABASE_URL = "postgresql+psycopg://digest:digest@localhost:5433/digest"
 $env:JWT_SECRET = python -c "import secrets; print(secrets.token_urlsafe(48))"
+$env:REDIS_URL = "redis://localhost:6379/0"   # needs a Redis you can reach locally
+$env:UPLOAD_DIR = "$PWD\uploads"; New-Item -ItemType Directory -Force uploads | Out-Null
 alembic upgrade head
 uvicorn app.main:app --reload
+python -m app.worker   # in a second terminal, to process uploads
 ```
+
+Compose doesn't publish Redis's port, so outside Docker you'll need your own Redis for uploads; everything else works without it.
 
 > `requirements.txt` is runtime-only and is what the production image installs. `requirements-dev.txt` pulls it in and adds `pytest`/`ruff`/`httpx` — use that one locally and in CI.
 
@@ -132,7 +162,15 @@ A `Makefile` defines these targets (requires `make`, e.g. `choco install make`);
 
 `make test` runs the full suite (including tests marked `integration`, which need a real database) inside a container wired to Postgres. Integration tests truncate their tables before and after each test, so they never leave rows behind.
 
-Outside Docker, `pytest -m "not integration"` runs only the tests that don't touch the database — that's also what CI runs, since Postgres isn't wired into CI yet (that's Phase 7).
+Outside Docker, `pytest -m "not integration"` runs only the tests that don't touch the database — that's also what CI runs, since Postgres isn't wired into CI yet (that's Phase 7). Tests never need Redis: they swap the queue for an in-memory recorder, and uploads go to a temporary folder.
+
+### Responsiveness under upload load
+
+```powershell
+python scripts/measure_latency.py --base-url http://localhost:8000
+```
+
+Times `GET /health` while idle and while 10 concurrent ~10 MB uploads run (5 rounds by default), and prints median, p95 and max for each. It registers a throwaway `latency-…@example.com` user, so run it against a development stack only. Measured from Windows, every request carries ~45 ms of Docker port-forwarding overhead; for clean numbers, copy the script into the `app` container and run it there.
 
 ## Images
 

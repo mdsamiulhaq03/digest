@@ -25,6 +25,7 @@ def register(payload: RegisterRequest, repo: UserRepository) -> UserResponse:
         raise EmailAlreadyRegisteredError()
 
     user = repo.create(User(email=email, password_hash=hash_password(payload.password)))
+    repo.commit()
     logger.info("user registered", user_id=str(user.id))
     return UserResponse.model_validate(user)
 

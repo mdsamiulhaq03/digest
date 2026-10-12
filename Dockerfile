@@ -10,6 +10,9 @@ FROM python:3.12-slim AS base
 WORKDIR /app
 RUN useradd --create-home --shell /bin/bash appuser
 COPY . .
+# The uploads volume takes this directory's owner on first mount, so it must
+# exist and belong to appuser here, or every upload fails with EACCES.
+RUN mkdir -p /data/uploads && chown appuser:appuser /data/uploads
 RUN chmod +x entrypoint.sh && chown -R appuser:appuser /app
 ENV PATH=/home/appuser/.local/bin:$PATH
 EXPOSE 8000

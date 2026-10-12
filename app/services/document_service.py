@@ -2,6 +2,7 @@ import uuid
 from dataclasses import asdict
 
 from loguru import logger
+from pydantic import BaseModel
 
 from app.core.exceptions import DocumentNotFoundError
 from app.models.document import Document
@@ -9,6 +10,7 @@ from app.models.insight import Insight
 from app.models.user import User
 from app.repositories.document_repository import DocumentRepository
 from app.schemas.document import (
+    CsvInsightsSchema,
     DocumentCreate,
     DocumentListResponse,
     DocumentResponse,
@@ -18,14 +20,21 @@ from app.utils.insights import compute_insights
 
 
 def _to_response(document: Document) -> DocumentResponse:
-    insights = InsightsSchema.model_validate(document.insight, from_attributes=True)
     return DocumentResponse(
         id=document.id,
         title=document.title,
         text=document.text,
-        insights=insights,
+        original_filename=document.original_filename,
+        content_type=document.content_type,
+        size_bytes=document.size_bytes,
+        insights=_validated(InsightsSchema, document.insight),
+        csv_insights=_validated(CsvInsightsSchema, document.csv_insight),
         created_at=document.created_at,
     )
+
+
+def _validated[S: BaseModel](schema: type[S], row: object | None) -> S | None:
+    return None if row is None else schema.model_validate(row, from_attributes=True)
 
 
 def create_document(
@@ -34,6 +43,7 @@ def create_document(
     document = Document(title=payload.title, text=payload.text, owner_id=owner.id)
     document.insight = Insight(**asdict(compute_insights(payload.text)))
     created = repo.create(document)
+    repo.commit()
     logger.info("document created", document_id=str(created.id), owner_id=str(owner.id))
     return _to_response(created)
 

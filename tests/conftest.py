@@ -1,12 +1,14 @@
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from sqlalchemy import text
 
+from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.main import app
-from app.routers.dependencies import get_active_user
-from tests.factories import make_user
+from app.routers.dependencies import get_active_user, get_job_queue
+from tests.factories import RecordingQueue, make_user
 
 
 def _truncate() -> None:
@@ -37,3 +39,19 @@ def as_some_user() -> Iterator[None]:
     app.dependency_overrides[get_active_user] = lambda: make_user()
     yield
     app.dependency_overrides.pop(get_active_user)
+
+
+@pytest.fixture
+def upload_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Uploads land in a per-test temp folder, never the real volume."""
+    monkeypatch.setattr(get_settings(), "upload_dir", str(tmp_path))
+    return tmp_path
+
+
+@pytest.fixture
+def queue() -> Iterator[RecordingQueue]:
+    """Swap Redis for a queue that records what was enqueued."""
+    recording = RecordingQueue()
+    app.dependency_overrides[get_job_queue] = lambda: recording
+    yield recording
+    app.dependency_overrides.pop(get_job_queue)
